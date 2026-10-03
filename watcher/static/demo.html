@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slopulent Pipeline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --ink: #1b2430; --muted: #5d6676; --line: #d9dee6; --soft: #eef0f4;
+    --accent: #2c5d73; --accent-soft: #e4eef2; --ok: #2e7d4f; --ok-soft: #e4f2ea; --warn: #9a6400; --warn-soft: #fbf1dc;
+    --bad: #b3261e; --bad-soft: #fbe9e7; --flow: #2f5f9e; --flow-soft: #e7eef8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #12161c; --panel: #1a1f27; --ink: #e5e9ef; --muted: #9aa3b1; --line: #2e3643; --soft: #212833;
+      --accent: #7fb3c8; --accent-soft: #1d2d35; --ok: #6cc795; --ok-soft: #17301f; --warn: #e7b85c; --warn-soft: #33290f;
+      --bad: #f08a80; --bad-soft: #3a1c19; --flow: #8db3e6; --flow-soft: #1c2a3c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif; }
+  .mono, code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  a { color: var(--accent); }
+  button, select { font: inherit; }
+
+  header { background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1280px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .brand { display: flex; flex-direction: column; margin-right: auto; }
+  .brand b { font-size: 15px; font-weight: 600; }
+  .brand span { font-size: 12px; color: var(--muted); }
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { color: var(--bad); border-color: var(--bad); }
+  .btn.danger.armed { background: var(--bad); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  select.btn { padding-right: 8px; max-width: 320px; }
+  .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+  .pill { display: inline-flex; gap: 6px; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--ok); } .dot.busy { background: var(--warn); } .dot.off { background: var(--bad); }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .panel-head { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .panel-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .meta { color: var(--muted); font-size: 12.5px; }
+  .present { display: none; padding: 12px 14px; gap: 12px; align-items: center; background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+  .present.show { display: flex; }
+
+  .diagram { padding: 6px 8px 10px; overflow-x: auto; }
+  .diagram svg { display: block; width: 100%; min-width: 900px; height: auto; }
+  .node rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; transition: stroke .3s, fill .3s; }
+  .node .title { fill: var(--ink); font: 600 13px "IBM Plex Sans", sans-serif; }
+  .node .sub { fill: var(--muted); font: 400 11px "IBM Plex Sans", sans-serif; }
+  .node .detail { fill: var(--ink); font: 500 11.5px "IBM Plex Mono", monospace; }
+  .node .state { font: 600 10.5px "IBM Plex Sans", sans-serif; letter-spacing: .04em; text-transform: uppercase; fill: var(--muted); }
+  .node.running rect { stroke: var(--accent); stroke-width: 2.5; fill: var(--accent-soft); }
+  .node.running .state { fill: var(--accent); }
+  .node.done rect { stroke: var(--ok); stroke-width: 2; }
+  .node.done .state { fill: var(--ok); }
+  .node.error rect { stroke: var(--bad); stroke-width: 2; }
+  .node.error .state { fill: var(--bad); }
+  .edge { fill: none; stroke: var(--line); stroke-width: 2; transition: stroke .3s; }
+  .edge.active { stroke: var(--accent); stroke-width: 2.5; }
+  .edge.done { stroke: var(--ok); opacity: .7; }
+  .elabel { fill: var(--muted); font: 500 10.5px "IBM Plex Sans", sans-serif; }
+  @media (prefers-reduced-motion: no-preference) {
+    .node.running rect { animation: breathe 2.4s ease-in-out infinite; }
+    @keyframes breathe { 50% { stroke-opacity: .45; } }
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .timeline { list-style: none; margin: 0; padding: 6px 14px 12px; max-height: 320px; overflow: auto; }
+  .timeline li { display: grid; grid-template-columns: 64px 128px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .timeline li:last-child { border-bottom: 0; }
+  .timeline .t { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 5px; font-size: 11.5px; font-weight: 600; background: var(--soft); color: var(--muted); }
+  .tag.start { background: var(--accent-soft); color: var(--accent); }
+  .tag.end { background: var(--ok-soft); color: var(--ok); }
+  .tag.merge { background: var(--ok-soft); color: var(--ok); }
+  .tag.error { background: var(--bad-soft); color: var(--bad); }
+  .findings { padding: 10px 14px 14px; display: grid; gap: 8px; }
+  .finding { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: start; font-size: 13px; }
+  .rel { display: inline-block; padding: 1px 8px; border-radius: 5px; font-size: 11.5px; font-weight: 600; }
+  .rel.duplicate { background: var(--bad-soft); color: var(--bad); } .rel.partial { background: var(--warn-soft); color: var(--warn); }
+  .rel.upstream, .rel.downstream { background: var(--flow-soft); color: var(--flow); } .rel.unrelated { background: var(--soft); color: var(--muted); }
+  .note { margin: 0 14px 12px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 6px 6px 0; font-size: 13.5px; }
+  .empty { padding: 22px 14px; color: var(--muted); text-align: center; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; z-index: 9; max-width: 90vw; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><b>Slopulent Living · Engineering</b><span>Overlap watcher: live pipeline</span></div>
+    <span class="pill" id="tick"><span class="dot"></span>…</span>
+    <span class="pill" id="gh-status"><span class="dot off"></span>GitHub pane: not open</span>
+    <span class="sep"></span>
+    <select class="btn" id="branch" aria-label="Test PR to open"><option>Loading test PRs…</option></select>
+    <button class="btn primary" id="open-pr">Open PR</button>
+    <button class="btn" id="merge-pr" disabled>Merge</button>
+    <button class="btn danger" id="reset">Reset demo</button>
+    <span class="sep"></span>
+    <button class="btn" id="present">Present side by side</button>
+    <a class="btn" href="/" style="text-decoration:none">Team view</a>
+  </div>
+  <div class="present" id="present-step">
+    <b>Step 2 of 2.</b> <span>Open GitHub in the right half of the screen. It will follow the pipeline.</span>
+    <button class="btn primary" id="open-gh">Open GitHub on the right</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-head"><h2>Pipeline</h2><span class="meta" id="focus-label">No PR yet. Open one above.</span></div>
+    <div class="diagram">
+      <svg id="svg" viewBox="0 0 1120 470" role="img" aria-label="Live pipeline: GitHub PR, OpenClaw scheduler, PR detection, topic extraction, candidate generation, classifier, OpenClaw agent, PR comment, and the merge path that re-indexes main.">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a3"/></marker>
+        </defs>
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <div class="panel-head"><h2>Result</h2><span class="meta" id="result-meta"></span></div>
+      <div id="result"><div class="empty">Results appear here when the PR has been analysed.</div></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Timeline</h2><span class="meta">pipeline events, newest first</span></div>
+      <ul class="timeline" id="timeline"><li class="empty">Nothing yet.</li></ul>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const clock = (ts) => new Date(ts * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false});
+function toast(m, ms = 4000) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms); }
+async function getJSON(u) { const r = await fetch(u); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
+async function action(name, body = {}) {
+  const r = await fetch(`/api/action/${name}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j;
+}
+
+// ---- diagram --------------------------------------------------------------------
+const W = 180, H = 92;
+const NODES = [
+  {id: "github", x: 20, y: 30, title: "GitHub", sub: "pull request on the monorepo"},
+  {id: "tick", x: 240, y: 30, title: "OpenClaw scheduler", sub: "watcher tick every 30 s"},
+  {id: "detect", x: 460, y: 30, title: "Detect PR", sub: "new commit queued"},
+  {id: "topics", x: 680, y: 30, title: "Topic extraction", sub: "Qwen3-Coder-Next"},
+  {id: "candidates", x: 900, y: 30, title: "Candidate generation", sub: "embeddings + keywords + tables"},
+  {id: "classifier", x: 900, y: 190, title: "Classifier", sub: "dummy LLM · CLM slot"},
+  {id: "agent", x: 680, y: 190, title: "OpenClaw agent", sub: "writes the note"},
+  {id: "comment", x: 460, y: 190, title: "[oc] PR comment", sub: "posted / updated on GitHub"},
+  {id: "merge", x: 20, y: 350, title: "Merge", sub: "PR merged into main"},
+  {id: "reindex", x: 240, y: 350, title: "Re-index main", sub: "topic sets reused by tree hash"},
+];
+const EDGES = [
+  {from: "github", to: "tick", d: "M200,76 H238"},
+  {from: "tick", to: "detect", d: "M420,76 H458"},
+  {from: "detect", to: "topics", d: "M640,76 H678"},
+  {from: "topics", to: "candidates", d: "M860,76 H898"},
+  {from: "candidates", to: "classifier", d: "M990,122 V188", label: "candidates"},
+  {from: "classifier", to: "agent", d: "M900,236 H862"},
+  {from: "agent", to: "comment", d: "M680,236 H642"},
+  {from: "comment", to: "github", d: "M460,236 H110 V124", label: "comment on the PR"},
+  {from: "github", to: "merge", d: "M60,124 V348", label: "merge"},
+  {from: "merge", to: "reindex", d: "M200,396 H238"},
+];
+function drawStatic() {
+  $("#edges").innerHTML = EDGES.map((e, i) => `<path class="edge" id="e${i}" d="${e.d}" marker-end="url(#arr)"/>` +
+    (e.label ? `<text class="elabel" x="${labelPos(e.d)[0]}" y="${labelPos(e.d)[1]}">${esc(e.label)}</text>` : "")).join("");
+  $("#nodes").innerHTML = NODES.map((n) => `<g class="node" id="n-${n.id}">
+    <rect x="${n.x}" y="${n.y}" width="${W}" height="${H}" rx="8"/>
+    <text class="state" x="${n.x + W - 10}" y="${n.y + 18}" text-anchor="end" id="s-${n.id}">idle</text>
+    <text class="title" x="${n.x + 12}" y="${n.y + 36}">${esc(n.title)}</text>
+    <text class="sub" x="${n.x + 12}" y="${n.y + 53}">${esc(n.sub)}</text>
+    <text class="detail" x="${n.x + 12}" y="${n.y + 76}" id="d-${n.id}"></text></g>`).join("");
+}
+function labelPos(d) {
+  const nums = d.match(/-?\d+(\.\d+)?/g).map(Number);
+  if (d.includes("V") && !d.includes("H")) return [nums[0] + 8, (nums[1] + nums[2]) / 2];
+  if (d.startsWith("M460,236")) return [250, 228];
+  if (d.startsWith("M60,124")) return [68, 240];
+  return [(nums[0] + nums[2]) / 2 - 12, nums[1] - 7];
+}
+function setNode(id, state, label, detail) {
+  const g = $(`#n-${id}`); g.setAttribute("class", `node ${state}`);
+  $(`#s-${id}`).textContent = label; $(`#d-${id}`).textContent = trunc(detail || "", 22);
+}
+function setEdges(states) {
+  EDGES.forEach((e, i) => {
+    const to = states[e.to], from = states[e.from];
+    $(`#e${i}`).setAttribute("class", "edge" + (to === "running" ? " active" : (to === "done" && from === "done") ? " done" : ""));
+  });
+}
+function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+// ---- state from events ---------------------------------------------------------
+let P = null, lastSeenId = null, focusPr = null;
+const STAGES = ["detect", "topics", "candidates", "classifier", "agent", "comment"];
+
+function compute(p) {
+  const now = p.now, states = {}, labels = {}, details = {};
+  NODES.forEach((n) => { states[n.id] = "idle"; labels[n.id] = "idle"; details[n.id] = ""; });
+  // scheduler
+  if (p.tick_running_since) { states.tick = "running"; labels.tick = "tick running"; details.tick = `${Math.round(now - p.tick_running_since)}s`; }
+  else if (p.last_tick) { states.tick = "done"; labels.tick = "listening"; details.tick = `last tick ${Math.round(now - p.last_tick)}s ago`; }
+  // focus PR: stage events since its latest "detect"
+  const pr = p.focus?.number;
+  if (pr) {
+    const evs = p.events.filter((e) => e.pr_number === pr && e.kind === "stage").sort((a, b) => a.id - b.id);
+    const lastDetect = [...evs].reverse().find((e) => e.data.stage === "detect");
+    const cycle = lastDetect ? evs.filter((e) => e.id >= lastDetect.id) : evs;
+    STAGES.forEach((st) => {
+      const mine = cycle.filter((e) => e.data.stage === st);
+      const last = mine[mine.length - 1];
+      if (!last) return;
+      if (last.data.status === "start") { states[st] = "running"; labels[st] = "running"; details[st] = `${Math.round(now - last.ts)}s`; }
+      else { states[st] = "done"; labels[st] = "done"; details[st] = stageDetail(st, last); }
+    });
+    states.github = "done"; labels.github = p.focus.state; details.github = `#${pr} ${p.focus.branch}`;
+    const err = p.events.find((e) => e.kind === "error" && e.pr_number === pr && (!lastDetect || e.id > lastDetect.id));
+    if (err) { const st = STAGES.find((s) => states[s] === "running") || "detect"; states[st] = "error"; labels[st] = "error"; details[st] = err.message; }
+  }
+  // merge path: last merge / reindex in the last 10 minutes
+  const merged = p.events.find((e) => e.kind === "pr_merged");
+  if (merged && now - merged.ts < 600) { states.merge = "done"; labels.merge = "merged"; details.merge = `#${merged.pr_number} · ${clock(merged.ts)}`; }
+  const ri = p.events.filter((e) => e.kind === "stage" && e.data.stage === "reindex").sort((a, b) => b.id - a.id)[0];
+  if (ri && now - ri.ts < 600) {
+    if (ri.data.status === "start") { states.reindex = "running"; labels.reindex = "running"; details.reindex = `${Math.round(now - ri.ts)}s`; }
+    else { states.reindex = "done"; labels.reindex = "done"; details.reindex = ri.data.reused?.length ? `reused: ${ri.data.reused.join(", ")}` : `${(ri.data.extracted || []).length} extracted`; }
+  }
+  return {states, labels, details};
+}
+function stageDetail(st, e) {
+  const d = e.data, s = d.seconds != null ? ` · ${d.seconds}s` : "";
+  if (st === "detect") return `@ ${(d.head_sha || "").slice(0, 7)}`;
+  if (st === "topics") { const n = Object.values(d.topics || {}).flat().length; return `${n} topic${n === 1 ? "" : "s"}${d.cached?.length ? " (cached)" : ""}${s}`; }
+  if (st === "candidates") return `${d.n} candidate${d.n === 1 ? "" : "s"}${s}`;
+  if (st === "classifier" && d.skipped) return "nothing to judge";
+  if (st === "classifier") { const dups = (d.verdicts || []).filter((v) => ["duplicate", "partial"].includes(v.relation)).length; return `${dups} overlap${dups === 1 ? "" : "s"}${s}`; }
+  if (st === "agent") return `${d.author_by === "fallback" ? "template" : "agent note"}${s}`;
+  if (st === "comment") return d.changed ? `posted${s}` : `unchanged${s}`;
+  return "";
+}
+
+function render(p) {
+  const {states, labels, details} = compute(p);
+  NODES.forEach((n) => setNode(n.id, states[n.id], labels[n.id], details[n.id]));
+  setEdges(states);
+  // header
+  const tk = p.tick_running_since ? ["busy", "tick running"] : p.last_tick && p.now - p.last_tick < p.poll_seconds * 3 ? ["on", "watcher listening"] : ["off", "watcher idle"];
+  $("#tick").innerHTML = `<span class="dot ${tk[0]}"></span>${tk[1]} · ${esc(p.llm)}`;
+  $("#focus-label").innerHTML = p.focus ? `PR <a href="${esc(p.focus.url)}" target="_blank" rel="noopener">#${p.focus.number}</a> · ${esc(p.focus.title)} · <span class="mono">${esc(p.focus.branch)}</span>` : "No PR yet. Open one above.";
+  const open = p.open_prs[0];
+  const mb = $("#merge-pr"); mb.disabled = !open; mb.textContent = open ? `Merge #${open.number}` : "Merge"; mb.dataset.number = open?.number || "";
+  // timeline
+  const tl = p.events.filter((e) => e.kind !== "action").slice(0, 40);
+  $("#timeline").innerHTML = tl.map((e) => {
+    const st = e.kind === "stage" ? e.data.stage : e.kind.replace("pr_", "");
+    const cls = e.kind === "stage" ? e.data.status : e.kind === "pr_merged" ? "merge" : e.kind === "error" ? "error" : "";
+    return `<li><span class="t">${clock(e.ts)}</span><span><span class="tag ${cls}">${esc(st)}${e.kind === "stage" ? " " + esc(e.data.status) : ""}</span></span>
+      <span>${e.pr_number ? `<b>#${e.pr_number}</b> ` : ""}${esc(trunc(e.message, 140))}</span></li>`;
+  }).join("") || `<li class="empty">Nothing yet.</li>`;
+  // result
+  const doneComment = states.comment === "done" || states.agent === "done";
+  if (p.focus && (p.findings.length || doneComment)) {
+    $("#result-meta").textContent = `PR #${p.focus.number} · candidates: top ${p.top_k} ≥ ${p.floor} + shared tables`;
+    $("#result").innerHTML = (p.alert ? `<div style="height:10px"></div><div class="note">${esc(p.alert.summary)}${p.alert.comment_url ? ` <a href="${esc(p.alert.comment_url)}" target="_blank" rel="noopener">View on GitHub</a>` : ""}</div>` : "") +
+      `<div class="findings">${p.findings.map((f) => `<div class="finding"><span><span class="rel ${esc(f.relation)}">${esc(f.relation)}</span> <span class="meta">${(+f.confidence).toFixed(2)}</span><div><b>${esc(f.repo_id)}</b></div></span><span class="meta">${esc(f.reason)}</span></div>`).join("") || '<div class="meta">No candidates: nothing on main overlaps this PR.</div>'}</div>`;
+  } else if (!p.focus) {
+    $("#result").innerHTML = `<div class="empty">Results appear here when the PR has been analysed.</div>`; $("#result-meta").textContent = "";
+  }
+}
+
+// ---- GitHub pane --------------------------------------------------------------------
+let gh = null, ghFollowing = "";
+const GH_NAME = "slopulant-github";
+function rightHalf() {
+  const sx = screen.availLeft ?? 0, sy = screen.availTop ?? 0, w = Math.floor(screen.availWidth / 2), h = screen.availHeight;
+  return `popup=yes,left=${sx + w},top=${sy},width=${w},height=${h}`;
+}
+function leftHalf() {
+  const sx = screen.availLeft ?? 0, sy = screen.availTop ?? 0, w = Math.floor(screen.availWidth / 2), h = screen.availHeight;
+  return `popup=yes,left=${sx},top=${sy},width=${w},height=${h}`;
+}
+function ghStatus() {
+  const ok = gh && !gh.closed;
+  $("#gh-status").innerHTML = `<span class="dot ${ok ? "on" : "off"}"></span>GitHub pane: ${ok ? esc(ghFollowing || "open") : "not open"}`;
+}
+function follow(url, label) {
+  if (!url) return;
+  ghFollowing = label || url.replace("https://github.com/", "");
+  if (gh && !gh.closed) {
+    try { gh.location.href = url; } catch (e) { gh = window.open(url, GH_NAME); }
+  }
+  ghStatus();
+}
+function bust(url) {  // reload the PR page so a fresh comment is there, then jump to it
+  const [base, hash] = url.split("#");
+  return `${base}${base.includes("?") ? "&" : "?"}oc=${Date.now()}${hash ? "#" + hash : ""}`;
+}
+$("#open-gh").onclick = () => {
+  const url = P?.focus ? P.focus.url : `https://github.com/${P?.repo || ""}/pulls`;
+  gh = window.open(url, GH_NAME, rightHalf());
+  if (!gh) { toast("Chrome blocked the window: allow pop-ups for this site (icon at the right of the address bar), then click again.", 8000); return; }
+  ghFollowing = P?.focus ? `PR #${P.focus.number}` : "pull requests";
+  $("#present-step").classList.remove("show"); ghStatus();
+};
+$("#present").onclick = () => {
+  if (window.name === "slopulant-demo") { $("#present-step").classList.add("show"); return; }
+  const w = window.open(location.pathname + "#present", "slopulant-demo", leftHalf());
+  if (!w) { toast("Chrome blocked the window: allow pop-ups for this site, then click again.", 8000); return; }
+  toast("Continue in the new window on the left: click “Open GitHub on the right”.", 6000);
+};
+if (location.hash === "#present" || window.name === "slopulant-demo") $("#present-step").classList.add("show");
+
+// react to new events (only those after the page loaded)
+function onEvents(p) {
+  const fresh = p.events.filter((e) => lastSeenId !== null && e.id > lastSeenId).sort((a, b) => a.id - b.id);
+  lastSeenId = Math.max(lastSeenId ?? 0, ...p.events.map((e) => e.id), 0);
+  for (const e of fresh) {
+    if (e.kind === "stage" && e.data.stage === "detect" && e.data.url) follow(e.data.url, `PR #${e.pr_number}`);
+    if (e.kind === "stage" && e.data.stage === "comment" && e.data.status === "end" && e.data.url) follow(bust(e.data.url), `PR #${e.pr_number} · [oc] comment`);
+    if (e.kind === "pr_merged") follow(`https://github.com/${p.repo}/pull/${e.pr_number}`, `PR #${e.pr_number} · merged`);
+    if (e.kind === "stage" && e.data.stage === "reindex" && e.data.status === "end" && (e.data.changed || []).length) follow(`https://github.com/${p.repo}/commits/main`, "main · commits");
+    if (e.kind === "reset") follow(`https://github.com/${p.repo}/commits/main`, "main · after reset");
+  }
+}
+
+// ---- controls ------------------------------------------------------------------------
+async function loadCatalog() {
+  try {
+    const items = await getJSON("/api/catalog");
+    const openable = items.filter((c) => c.state !== "open");
+    $("#branch").innerHTML = openable.map((c) => `<option value="${esc(c.branch)}">${esc(c.title.replace("[TEST] ", ""))} (${esc(c.author || c.branch)})</option>`).join("") || "<option>No test PRs available</option>";
+  } catch (e) { $("#branch").innerHTML = `<option>Couldn't load test PRs</option>`; }
+}
+$("#open-pr").onclick = async () => {
+  const b = $("#open-pr"); b.disabled = true;
+  try {
+    const r = await action("open", {branch: $("#branch").value});
+    toast(`Opened PR #${r.pr.number}. The watcher picks it up within seconds.`);
+    follow(r.pr.url, `PR #${r.pr.number}`);
+    loadCatalog();
+  } catch (e) { toast("Couldn't open the PR: " + e.message, 7000); }
+  finally { b.disabled = false; }
+};
+$("#merge-pr").onclick = async () => {
+  const b = $("#merge-pr"), n = +b.dataset.number; if (!n) return; b.disabled = true;
+  try { await action("merge", {number: n}); toast(`Merged #${n}. main is re-indexed on the next tick.`); follow(`https://github.com/${P.repo}/pull/${n}`, `PR #${n} · merged`); }
+  catch (e) { toast("Couldn't merge: " + e.message, 7000); }
+};
+const reset = $("#reset");
+reset.onclick = async () => {
+  if (!reset.classList.contains("armed")) { reset.classList.add("armed"); reset.textContent = "Click again to reset"; setTimeout(() => { reset.classList.remove("armed"); reset.textContent = "Reset demo"; }, 4000); return; }
+  reset.classList.remove("armed"); reset.textContent = "Resetting…"; reset.disabled = true;
+  try { const r = await action("reset"); toast("Reset: " + (r.steps.join("; ") || "nothing to change"), 8000); loadCatalog(); }
+  catch (e) { toast("Reset failed: " + e.message, 8000); }
+  finally { reset.disabled = false; reset.textContent = "Reset demo"; }
+};
+
+async function tick() {
+  try { P = await getJSON("/api/pipeline"); onEvents(P); render(P); ghStatus(); }
+  catch (e) { $("#tick").innerHTML = `<span class="dot off"></span>can't reach the dashboard server`; }
+}
+drawStatic(); loadCatalog(); tick(); setInterval(tick, 1000); setInterval(loadCatalog, 20000);
+</script>
+</body>
+</html>

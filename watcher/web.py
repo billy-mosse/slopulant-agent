@@ -20,7 +20,7 @@ from . import main as watcher
 
 STATIC = Path(__file__).parent / "static"
 PORT = 8765
-DB_TABLES = ("prs", "pr_queue", "folders", "topics", "scores", "decisions", "alerts", "events", "kv")
+DB_TABLES = ("history", "prs", "pr_queue", "folders", "topics", "scores", "decisions", "alerts", "events", "kv")
 BLOB_COLUMNS = {"embedding", "func_embeddings"}
 _catalog_cache = {"at": 0, "data": None}
 
@@ -194,6 +194,100 @@ def presets():
             for n in PRESETS if (folder / f"{n}.py").exists()]
 
 
+def overview():
+    """Team view: KPIs, recent analyses, most re-built systems, team overlap matrix."""
+    from collections import Counter, defaultdict
+    from statistics import median
+    from . import teams as teams_mod
+    conn = db.connect()
+    base_sha = db.get_kv(conn, db.index_key())
+    info = teams_mod.load(base_sha) if base_sha else {"teams": {}, "folder_team": {}, "person_team": {}}
+    name = lambda key: teams_mod.team_name(info, key)
+    rows = _rows(conn.execute("SELECT * FROM history ORDER BY alerted_at DESC"))
+    latest = {}
+    for r in rows:  # latest analysis per branch
+        latest.setdefault(r["branch"], r)
+    analyses = list(latest.values())
+    for a in analyses:
+        a["folders"] = json.loads(a["folders"]); a["findings"] = json.loads(a["findings"])
+        a["author_team_name"] = name(a["author_team"])
+        for f in a["findings"]:
+            f["owner_team_name"] = name(f["owner_team"])
+    overl = lambda a: [f for f in a["findings"] if f["relation"] in ("duplicate", "partial")]
+    links = lambda a: [f for f in a["findings"] if f["relation"] in ("upstream", "downstream")]
+    flagged = [a for a in analyses if overl(a)]
+    cross = [(a, f) for a in analyses for f in overl(a) if f["owner_team"] and f["owner_team"] != a["author_team"]]
+    alert_secs = [a["alerted_at"] - a["detected_at"] for a in analyses if a["detected_at"] and a["source"] == "live"]
+    rebuilt = Counter(f["repo_id"] for a in analyses for f in overl(a))
+    owners = {f["repo_id"]: (f["owner"], f["owner_team_name"]) for a in analyses for f in a["findings"]}
+    matrix = Counter((a["author_team_name"], f["owner_team_name"]) for a in analyses for f in overl(a))
+    per_team = defaultdict(lambda: {"prs": 0, "flagged": 0, "rebuilt_from_them": 0, "links": 0})
+    for a in analyses:
+        t = per_team[a["author_team_name"]]; t["prs"] += 1; t["flagged"] += bool(overl(a)); t["links"] += len(links(a))
+        for f in overl(a):
+            if f["owner_team"] != a["author_team"]:  # only re-builds by someone outside the owning team
+                per_team[f["owner_team_name"]]["rebuilt_from_them"] += 1
+    folders = {}
+    if base_sha:
+        for folder, tree in gitrepo.folders(base_sha).items():
+            entry = db.get_folder(conn, tree)
+            folders[folder] = {"team": name(info["folder_team"].get(folder)), "topics": [t["name"] for t in entry["topics"]] if entry else [],
+                               "rebuilt": rebuilt.get(folder, 0)}
+    return {
+        "repo": config.GITHUB_REPO, "base_sha": base_sha, "llm": config.llm()["label"],
+        "kpis": {
+            "analysed": len(analyses), "flagged": len(flagged), "cross_team": len(cross),
+            "links": sum(len(links(a)) for a in analyses),
+            "median_alert_seconds": round(median(alert_secs)) if alert_secs else None,
+            "systems": len(folders), "topics": sum(len(f["topics"]) for f in folders.values()),
+            "live": sum(a["source"] == "live" for a in analyses), "backfill": sum(a["source"] == "backfill" for a in analyses),
+        },
+        "teams": [{"key": k, "name": t.get("name", k), "lead": t.get("lead"), "members": t.get("members") or [],
+                   "folders": t.get("folders") or [], **per_team[t.get("name", k)]} for k, t in info["teams"].items()],
+        "analyses": analyses[:60],
+        "rebuilt": [{"folder": f, "count": c, "owner": owners.get(f, (None, None))[0], "team": owners.get(f, (None, None))[1]}
+                    for f, c in rebuilt.most_common(8)],
+        "matrix": [{"from": a, "to": b, "count": c} for (a, b), c in matrix.most_common()],
+        "folders": folders,
+    }
+
+
+PIPELINE_KINDS = ("stage", "pr_opened", "pr_merged", "pr_closed", "reset", "action", "error")
+
+
+def pipeline():
+    """Everything the live pipeline view needs: recent pipeline events, tick status,
+    open PRs, latest verdicts/alerts for the PR in focus."""
+    conn = db.connect()
+    kv = {r["key"]: r["value"] for r in conn.execute("SELECT * FROM kv")}
+    marks = ",".join("?" * len(PIPELINE_KINDS))
+    events = _rows(conn.execute(f"SELECT * FROM events WHERE kind IN ({marks}) ORDER BY id DESC LIMIT 200", PIPELINE_KINDS))
+    for e in events:
+        e["data"] = json.loads(e["data"]) if e["data"] else {}
+    open_prs = _rows(conn.execute("SELECT number, title, branch, url, head_sha, state FROM prs WHERE state = 'open' ORDER BY number DESC"))
+    focus = next((e["pr_number"] for e in events if e["kind"] == "stage" and e["pr_number"]), None)
+    findings = []
+    if focus:
+        findings = _rows(conn.execute(
+            "SELECT d.repo_id, d.relation, d.confidence, d.reason, d.pr_folder FROM decisions d "
+            "WHERE d.pr_number = ? AND d.ts = (SELECT max(ts) FROM decisions WHERE pr_number = ?) ORDER BY d.confidence DESC",
+            (focus, focus)))
+        for f in findings:
+            f["owner"] = None
+    alert = conn.execute("SELECT summary, comment_url, author_by FROM alerts WHERE pr_number = ? ORDER BY ts DESC LIMIT 1",
+                         (focus,)).fetchone() if focus else None
+    focus_pr = conn.execute("SELECT number, title, branch, url, state FROM prs WHERE number = ?", (focus,)).fetchone() if focus else None
+    return {
+        "now": time.time(), "repo": config.GITHUB_REPO, "base_sha": kv.get(db.index_key()),
+        "tick_running_since": float(kv["tick_started"]) if kv.get("tick_started") else None,
+        "last_tick": float(kv["last_tick"]) if kv.get("last_tick") else None, "poll_seconds": config.POLL_SECONDS,
+        "llm": config.llm()["label"], "classifier": "dummy LLM classifier (CLM slot)", "agent": config.OPENCLAW_AGENT,
+        "top_k": config.TOP_K, "floor": config.MIN_CANDIDATE_SCORE,
+        "events": events, "open_prs": open_prs, "focus": dict(focus_pr) if focus_pr else None,
+        "findings": findings, "alert": dict(alert) if alert else None, "baseline": demo.baseline(conn),
+    }
+
+
 def run_tick_now():
     """Kicks a watcher tick in the background (the lock keeps it from overlapping)."""
     subprocess.Popen([sys.executable, "-m", "watcher.main", "--once"], cwd=str(Path(__file__).resolve().parent.parent),
@@ -230,6 +324,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path in ("/", "/index.html"):
                 return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
+            if url.path in ("/demo", "/demo.html"):
+                return self._send(200, (STATIC / "demo.html").read_bytes(), "text/html; charset=utf-8")
             routes = {
                 "/api/state": state,
                 "/api/catalog": lambda: catalog(force=q.get("force") == "1"),
@@ -237,6 +333,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/tables": tables,
                 "/api/events": events,
                 "/api/presets": presets,
+                "/api/pipeline": pipeline,
+                "/api/overview": overview,
                 "/api/table": lambda: table(q.get("name", "topics"), int(q.get("limit", 50)), int(q.get("offset", 0)), q.get("q")),
             }
             if url.path not in routes:

@@ -74,6 +74,25 @@ CREATE TABLE IF NOT EXISTS scores (
 
 CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT);
 
+-- One row per analysed PR commit, for the team view. Kept across demo resets.
+CREATE TABLE IF NOT EXISTS history (
+    branch       TEXT    NOT NULL,
+    head_sha     TEXT    NOT NULL,
+    base_sha     TEXT    NOT NULL,
+    pr_number    INTEGER,
+    title        TEXT,
+    author       TEXT,
+    author_team  TEXT,
+    folders      TEXT    NOT NULL,   -- JSON {folder: [topic names]}
+    findings     TEXT    NOT NULL,   -- JSON [{repo_id, repo_topic, owner, owner_team, relation, confidence, reason}]
+    n_candidates INTEGER NOT NULL,
+    comment_url  TEXT,
+    detected_at  REAL,
+    alerted_at   REAL    NOT NULL,
+    source       TEXT    NOT NULL,   -- live | backfill
+    PRIMARY KEY (branch, head_sha, base_sha)
+);
+
 -- PR metadata from the last poll, for display.
 CREATE TABLE IF NOT EXISTS prs (
     number    INTEGER PRIMARY KEY,
@@ -289,6 +308,13 @@ def upsert_prs(conn, prs):
         )
     conn.commit()
     return changed
+
+
+def put_history(conn, row):
+    conn.execute(
+        "INSERT OR REPLACE INTO history VALUES (:branch, :head_sha, :base_sha, :pr_number, :title, :author, :author_team, "
+        ":folders, :findings, :n_candidates, :comment_url, :detected_at, :alerted_at, :source)", row)
+    conn.commit()
 
 
 def get_kv(conn, key):
