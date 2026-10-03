@@ -28,6 +28,9 @@ GITHUB_TOKEN_FILE = Path(os.environ.get("GITHUB_TOKEN_FILE", Path.home() / ".slo
 ALLOW_GH_FALLBACK = os.environ.get("ALLOW_GH_FALLBACK", "1") != "0"
 # Post/update the "[oc]" alert comment on PRs.
 POST_GITHUB_COMMENTS = os.environ.get("POST_GITHUB_COMMENTS", "1") != "0"
+# repost: replace our previous "[oc]" comment with a new one (always at the bottom of the PR);
+# edit: update it in place (it stays where it was first posted).
+ALERT_COMMENT_MODE = os.environ.get("ALERT_COMMENT_MODE", "repost")
 BASE_BRANCH = os.environ.get("BASE_BRANCH", "main")
 POLL_SECONDS = int(os.environ.get("POLL_SECONDS", "30"))
 

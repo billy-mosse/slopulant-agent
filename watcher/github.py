@@ -145,11 +145,21 @@ def login():
 
 
 def upsert_alert_comment(number, body):
-    """Creates or edits the single "[oc]" comment on a PR. Returns (url, changed)."""
+    """Keeps a single "[oc]" comment on a PR. Returns (url, changed).
+
+    Default (ALERT_COMMENT_MODE=repost): delete our previous "[oc]" comment(s) and post a
+    fresh one, so the latest analysis is always the newest item at the bottom of the PR.
+    ALERT_COMMENT_MODE=edit edits the existing comment in place instead (it then stays
+    wherever it was first posted in the timeline)."""
     if not body.startswith(COMMENT_PREFIX):
         body = f"{COMMENT_PREFIX} {body}"
     comments = api("GET", f"/repos/{config.GITHUB_REPO}/issues/{number}/comments", params={"per_page": 100})
     mine = [c for c in comments if c["body"].startswith(COMMENT_PREFIX) and c["user"]["login"] == login()]
+    if config.ALERT_COMMENT_MODE == "repost":
+        for c in mine:  # only ever our own "[oc]" comments
+            api("DELETE", f"/repos/{config.GITHUB_REPO}/issues/comments/{c['id']}")
+        c = api("POST", f"/repos/{config.GITHUB_REPO}/issues/{number}/comments", json={"body": body})
+        return c["html_url"], True
     if mine:
         if mine[0]["body"] == body:
             return mine[0]["html_url"], False

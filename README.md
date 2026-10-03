@@ -8,47 +8,61 @@ The code it analyses lives in a **separate repo**:
 the mock "Slopulent Living" company ML monorepo. Each top-level folder there is one
 system ("repo"). Nothing in this repo should be committed there, and vice versa.
 
-## How the watcher works
+## How it works
 
-Every `POLL_SECONDS` (30):
+Architecture diagram: [`docs/architecture.html`](docs/architecture.html). Pitch deck:
+[`docs/deck/`](docs/deck/).
 
-1. **Index base branch.** If `main` moved, build a *card* for each top-level folder,
-   in parallel (`LLM_CONCURRENCY`, default 8), cached by git tree sha + model + prompt
-   version so unchanged folders are never re-processed. Three LLM calls per card, run
-   concurrently:
-   - **description**: capability card, embedded
-   - **keywords**: 10-15 technical keywords, then generic terms (ML, AI, model, data,
-     code, ...) and stop words removed in code (`watcher/keywords.py`)
-   - **inputs/outputs**: tables the code reads/writes
-   plus **functions**: every non-trivial function's source, embedded.
-2. **Poll** open PRs (GitHub API with ETags, so idle polls cost no rate limit). A PR
-   is (re)queued per `(head sha, base sha, card version)`: new pushes, merges to
-   `main` and prompt changes all trigger a re-score.
-3. **Score.** For each folder the PR touches, build its card *from the PR branch* and
-   compare it with every other folder on `main`:
-   - `card_score`: cosine of description embeddings
-   - `kw_score`: TF-IDF cosine of keyword tokens (IDF fitted on `main`), with
-     `kw_match` listing the shared keywords, rarest first
-   - `code_score`: best cosine between any two functions, with `code_match`
-   - `dataflow`: `upstream:<table>` / `downstream:<table>` producer-consumer links
-   - `score` = **mean(card, kw)**; `code_score` is evidence only
-   - `candidate` = every dataflow link, plus the top `TOP_K` (5) non-dataflow
-     folders above `MIN_CANDIDATE_SCORE` (0.38).
+One **tick** (`python -m watcher.main --once`), run every 30 s by an OpenClaw scheduled
+job. Ticks never overlap: each takes an exclusive lock, and queue items are claimed, so
+a crashed run's items are retried.
 
-State is SQLite at `data/watcher.db`: `pr_queue`, `folder_cards`, `scores`, and the
-`latest_scores` view (most recent run per PR).
+1. **Poll** open and recently closed PRs (GitHub API with ETags). Opened, merged and
+   closed PRs are recorded as events. Each PR is queued per (head commit, base commit,
+   version), so new pushes and merges to `main` trigger a re-score.
+2. **Index `main`** when it moves. Each top-level folder becomes **1..N topics**, one per
+   model, pipeline or tool (`watcher/topics.py`). Each topic has:
+   - a description, embedded with all-MiniLM-L6-v2
+   - keywords from a separate LLM pass, with generic terms removed in code
+   - the tables it reads and writes
 
-## Demo UI
+   Folders over 40k characters are chunked, and the per-chunk topics merged. Topics are
+   cached by git tree sha + model, so a merged PR's folders reuse the topics computed
+   for the PR. A PR's own folders are always re-extracted (`REEXTRACT_PR_TOPICS`).
+3. **Candidates.** Each PR topic is compared with every topic on `main`; the best topic
+   pair gives the score, `mean(description cosine, keyword TF-IDF)`. Candidates are
+   every shared-table link (upstream/downstream), plus the top `TOP_K` (5) folders
+   scoring ≥ `MIN_CANDIDATE_SCORE` (0.38).
+4. **Classifier** (`watcher/classifier.py`) judges each candidate:
+   duplicate / partial / upstream / downstream / unrelated. It's a dummy LLM
+   classifier now; the CLM classifier replaces `classify()`. Eval data for it:
+   [`for_jesse_readme.md`](for_jesse_readme.md).
+5. **Alert.** The OpenClaw agent `watcher` writes a short note to the PR author. The
+   watcher posts it as a single `[oc]` comment on the PR, together with links, owners
+   and verdicts built from data. The comment is replaced with a fresh one on every
+   re-score (`ALERT_COMMENT_MODE=repost`), so it's always at the bottom of the PR.
 
-`python -m watcher.web` serves a local dashboard and runs the watcher loop in the
-same process:
+Every stage records start/end events for the live view. Each analysis is also written
+to a `history` table for the team view. State lives in SQLite at `data/watcher.db`
+(browsable in the dashboard's **Data** tab). Team ownership comes from `teams.yaml` in
+the company monorepo.
 
-- **Pull requests**: every open PR with the LLM's card for each folder it touches,
-  and the ranked folders on `main` (candidates first, with why: card/code scores,
-  the matching function pair, or the data-flow link). Refreshes every 4s.
-- **Try it**: paste code for a new system and score it against `main` without
-  opening a PR (same code path as the watcher). Comes with example snippets.
-- **Index (main)**: the card for every folder on `main`.
+## Dashboards
+
+`python -m watcher.web` serves both on port 8765 (`--watcher` also runs the loop in
+the same process, for laptop use).
+
+- **`/` Team view:** Overview (KPIs, recent analyses, most re-built systems, which team
+  re-builds which), Teams, Pull requests (Merge/Close), Systems (topics per folder),
+  History (git graph), Activity, Data (every table; save the demo baseline), Try it
+  (score pasted code without a PR), and a model switch between local Ollama and
+  OpenRouter.
+- **`/demo` Live pipeline:** an architecture diagram whose boxes light up as each
+  stage runs, plus a timeline and the result. Open a test PR, merge it, or **Reset
+  demo**: that force-pushes `main` back to the saved baseline and restores the
+  baseline's PRs. **Present side by side** opens GitHub on the right half of the
+  screen; it follows the pipeline (PR → `[oc]` comment → merge → commits). Chrome may
+  ask to allow pop-ups the first time.
 
 ## Evaluation
 
@@ -101,35 +115,76 @@ ones, leaves 80% of unrelated systems with no candidate.
 
 `python -m eval.prompt_lab prompts [variant ...]` compares description prompts.
 
-## Run
+## Run it end to end
+
+Settings come from environment variables or a gitignored `.env` in the repo root (see
+`watcher/config.py`). You need a GitHub token that can read/write the company monorepo
+(contents, pull requests, issues): `GITHUB_TOKEN`, or a file at `GITHUB_TOKEN_FILE`.
+
+### Quick start on a laptop (OpenRouter, no OpenClaw)
 
 ```sh
 pip install -r requirements.txt
-# LLM: Qwen3-Coder-Next on OpenRouter by default; key read from .api_key (gitignored)
-python -m watcher.web             # demo UI on http://localhost:8765 (runs the loop too)
-python -m watcher.main            # loop only; add --once for a single pass
-python -m watcher.show            # latest candidates per PR (--all for every pair)
+echo "sk-or-..." > .api_key                # OpenRouter key (gitignored)
+python -m watcher.web --watcher            # dashboards + watcher loop: http://localhost:8765
 ```
 
-At the hackathon, serve Qwen3-Coder-Next locally (vLLM) and point the watcher at it:
-`LLM_BASE_URL=http://localhost:8000/v1 LLM_MODEL=<served name>`.
-`scripts/serve_llm.sh` still runs a small MLX model on a Mac for offline dev.
+The first run indexes `main` (41 folders, ~40 s on OpenRouter). Without OpenClaw the
+note in the PR comment falls back to a template; everything else works.
 
-Everything is configured via env vars (see `watcher/config.py`). On the hackathon
-box, serve the big model with vLLM and set `LLM_BASE_URL` / `LLM_MODEL`.
+### On the GB10 box (local model + OpenClaw), as deployed
 
-| Env var | Default |
-|---|---|
-| `GITHUB_REPO` | `billy-mosse/slopulant-monorepo` |
-| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `LLM_MODEL` | `qwen/qwen3-coder-next` |
-| `LLM_API_KEY` | from `.api_key` when using OpenRouter |
-| `EMBED_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
-| `POLL_SECONDS` | `30` |
-| `TOP_K` | `5` |
-| `MIN_CANDIDATE_SCORE` | `0.38` |
-| `LLM_CONCURRENCY` | `8` |
-| `LLM_CACHE` | `1`: identical LLM requests are answered from `data/llm_cache.json`; `0` disables |
+- **Code:** `~/slopulant-watcher` (synced from this repo), Python from a venv with
+  `requirements.txt`.
+- **Model:** Ollama serving `coder-next:latest` (Qwen3-Coder-Next Q6) on :11434.
+- **`.env`:**
+  ```
+  LLM_PROFILE=local
+  LLM_CACHE=0
+  LLM_CONCURRENCY=4
+  GITHUB_TOKEN_FILE=~/.slopulant/github_token
+  ALLOW_GH_FALLBACK=0
+  OPENCLAW_BIN=/home/dell/.local/opt/node-v24.21.0-linux-arm64/bin/openclaw
+  OPENCLAW_AGENT=watcher
+  PROGRESS=0
+  ```
+- **OpenClaw:**
+  - Create the agent once: `openclaw agents add watcher --non-interactive --workspace ~/.openclaw/workspace-watcher --model ollama/coder-next:latest`
+  - Register the scheduled job (it runs one tick every 30 s; ticks never overlap):
+    ```sh
+    openclaw cron add --name slopulant-watcher --every 30s --no-deliver --timeout-seconds 3600 \
+      --command "cd ~/slopulant-watcher && <venv>/bin/python -m watcher.main --once"
+    ```
+- **Dashboards:** `python -m watcher.web --host 127.0.0.1 --port 8765`. From a laptop,
+  tunnel with `ssh -L 8765:127.0.0.1:8765 dell@<gb10>` and open
+  http://127.0.0.1:8765/demo.
+- **Demo setup:**
+  - Open test PRs from `/demo`; the test branches are listed there.
+  - Save the baseline once from the **Data** tab, so **Reset demo** knows where to return.
+  - `python -m watcher.backfill` analyses all test branches into the team view's history.
+
+### Other commands
+
+```sh
+python -m watcher.show               # latest candidates per PR (--all for every pair)
+python -m eval.run_eval              # candidate-generator recall@K on the test PRs
+python -m eval.export_for_jesse      # eval SQLite for the classifier (see for_jesse_readme.md)
+```
+
+| Setting | Default | What it does |
+|---|---|---|
+| `GITHUB_REPO` | `billy-mosse/slopulant-monorepo` | repo to watch |
+| `LLM_PROFILE` | `openrouter` | `local` (Ollama, `LLM_LOCAL_URL` / `LLM_LOCAL_MODEL`) or `openrouter` (key in `.api_key`); switchable in the dashboard |
+| `EMBED_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | topic embeddings |
+| `POLL_SECONDS` | `30` | loop interval (laptop mode) |
+| `TOP_K`, `MIN_CANDIDATE_SCORE` | `5`, `0.38` | candidate generation |
+| `CHUNK_CHARS` | `40000` | folders bigger than this are chunked |
+| `LLM_CONCURRENCY` | `8` | parallel LLM calls |
+| `LLM_CACHE` | `1` | answer identical LLM requests from `data/llm_cache.json` (`0` for real timings) |
+| `REEXTRACT_PR_TOPICS` | `1` | always re-extract a PR's folders (`main` stays cached) |
+| `CLASSIFIER` | `1` | run the classifier on candidates |
+| `OPENCLAW_BIN`, `OPENCLAW_AGENT` | `openclaw`, `main` | agent that writes the note |
+| `POST_GITHUB_COMMENTS`, `ALERT_COMMENT_MODE` | `1`, `repost` | post the `[oc]` comment; `repost` keeps it at the bottom, `edit` updates in place |
 
 ## Discord alerts and feedback
 
