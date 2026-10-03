@@ -1,0 +1,367 @@
+{
+  "_doc": "Ground truth for the mock company repo billy-mosse/slopulant-monorepo. Lives in the TOOL repo so the watcher never sees it. 'reads'/'writes' are the exact tables each system's code uses; upstream/downstream relations are derived from them by eval/build_cases.py. 'duplicate_clusters' are systems doing the same job; 'partial' pairs are systems where one reimplements a component of the other.",
+
+  "systems": {
+    "product_matching":      {"team": "catalog", "author": "Priya Raman", "reads": ["catalog.products"], "writes": ["catalog.merge_candidates"], "existing": true},
+    "tag_validation":        {"team": "catalog", "author": "Priya Raman", "reads": ["catalog.raw_tags"], "writes": ["catalog.validated_tags"], "existing": true},
+    "product_embeddings":    {"team": "catalog", "author": "Marcus Okafor", "reads": ["catalog.products", "catalog.validated_tags"], "writes": ["features.product_embeddings"], "existing": true},
+    "review_summaries":      {"team": "reviews", "author": "Dana Whitfield", "reads": ["reviews.approved"], "writes": ["reviews.summaries"], "existing": true},
+    "review_moderation":     {"team": "reviews", "author": "Dana Whitfield", "reads": ["reviews.raw"], "writes": ["reviews.approved", "reviews.flagged"], "existing": true},
+    "two_tower_search":      {"team": "search", "author": "Marcus Okafor", "reads": ["features.product_embeddings"], "writes": [], "existing": true},
+    "i2i_recs":              {"team": "search", "author": "Tomás Herrera", "reads": ["catalog.products"], "writes": ["recs.i2i"], "existing": true},
+    "price_model":           {"team": "pricing", "author": "Lena Fischer", "reads": ["catalog.products", "catalog.raw_tags"], "writes": ["pricing.suggested_price"], "existing": true},
+    "customer_intent":       {"team": "customer", "author": "Kenji Watanabe", "reads": ["sessions.events", "features.product_embeddings"], "writes": ["scores.p_cvr"], "existing": true},
+    "customer_embeddings":   {"team": "customer", "author": "Kenji Watanabe", "reads": ["orders.lines"], "writes": ["features.customer_embeddings"], "existing": true},
+
+    "image_quality": {
+      "team": "catalog", "author": "Arjun Mehta", "date": "2026-08-06T10:20:00",
+      "files": ["score_images.py", "README.md"],
+      "reads": ["catalog.product_images"], "writes": ["catalog.image_quality_scores"],
+      "spec": "Scores every product image so merchandisers can replace bad ones. Per image: blur (variance of a Laplacian kernel applied with numpy convolution), exposure (mean/clipped-pixel share of luminance), background whiteness (share of near-white pixels in a border band), resolution and aspect-ratio checks. Combines into a 0-100 score with reason codes (BLURRY, DARK, BUSY_BACKGROUND, LOW_RES). Images arrive as numpy arrays already decoded. README documents the score bands and the tables."
+    },
+    "color_extraction": {
+      "team": "catalog", "author": "Arjun Mehta", "date": "2026-08-11T15:05:00",
+      "files": ["dominant_colors.py", "palette.py"],
+      "reads": ["catalog.product_images"], "writes": ["catalog.product_colors"],
+      "spec": "Extracts dominant colors of the product (not the background) from images: mask out near-white background, run k-means (implemented with numpy, k=4, a few iterations, kmeans++ init) in Lab color space (include an RGB->Lab conversion), then map each cluster centroid to the nearest named color in a merchandising palette (palette.py: ~25 named colors like 'oat', 'sage', 'terracotta', 'charcoal' with Lab values) by Delta-E. Output: top 2 named colors with pixel share per SKU."
+    },
+    "attribute_extraction": {
+      "team": "catalog", "author": "Sofia Brandt", "date": "2026-08-13T09:40:00",
+      "files": ["extract_attributes.py", "gazetteers.py", "config.yaml"],
+      "reads": ["catalog.products"], "writes": ["catalog.product_attributes"],
+      "spec": "Pulls structured attributes out of free-text titles and descriptions: material (linen, cotton, velvet, wool... with blend percentages like '55% linen 45% cotton'), size (Twin/Full/Queen/King/Cal King, dimensions like '90 x 92 in' converted to cm), thread count, care instructions, pattern. Uses regexes plus gazetteers (gazetteers.py) with synonym normalization and a confidence per attribute. config.yaml lists input and output tables and per-attribute confidence thresholds."
+    },
+    "category_classifier": {
+      "team": "catalog", "author": "Priya Raman", "date": "2026-08-18T11:00:00",
+      "files": ["train.py", "predict.py", "taxonomy.py"],
+      "reads": ["catalog.products", "catalog.category_labels"], "writes": ["catalog.predicted_category"],
+      "spec": "Classifies products into the 3-level home-goods taxonomy (taxonomy.py: e.g. Bedding > Sheets > Fitted Sheets). TF-IDF over title + description (sklearn TfidfVectorizer with word and char n-grams) and a LogisticRegression per level with hierarchical consistency (child must belong to predicted parent; fall back to parent if child confidence < threshold). train.py fits on human labels from catalog.category_labels with a stratified split and reports macro-F1; predict.py writes predictions with confidences."
+    },
+    "title_rewriter": {
+      "team": "catalog", "author": "Sofia Brandt", "date": "2026-09-02T14:30:00",
+      "files": ["rewrite_titles.py", "templates.py"],
+      "reads": ["catalog.products", "catalog.product_attributes", "catalog.product_colors"], "writes": ["catalog.seo_titles"],
+      "spec": "Generates SEO-friendly product titles from structured attributes and colors using per-category templates (templates.py), e.g. '{brand} {material} {product_type}, {size}, {color}'. Enforces a 70-character limit with a priority order for dropping slots, title-cases, removes duplicate words and merchant noise ('!!!', 'SALE', 'free shipping'). Keeps the original title when attributes are missing or low confidence."
+    },
+    "query_understanding": {
+      "team": "search", "author": "Yuki Tanaka", "date": "2026-08-08T10:10:00",
+      "files": ["spell.py", "intent.py", "pipeline.py"],
+      "reads": ["search.query_logs", "catalog.predicted_category"], "writes": ["search.query_intents"],
+      "spec": "Normalizes and interprets search queries. spell.py: vocabulary built from query logs weighted by frequency, Damerau-Levenshtein candidates within distance 2, choose by frequency x edit penalty (Norvig-style). intent.py: maps a corrected query to a category distribution by aggregating the predicted categories of products clicked for that query (from query logs joined with catalog.predicted_category), plus a rule layer for price intents ('under $50') and attribute intents ('king', 'linen'). pipeline.py runs nightly and writes query -> (corrected_query, top categories, attribute filters)."
+    },
+    "search_ranker": {
+      "team": "search", "author": "Marcus Okafor", "date": "2026-08-20T16:45:00",
+      "files": ["features.py", "train_ranker.py", "config.yaml"],
+      "reads": ["search.click_logs", "features.product_embeddings", "search.query_intents"], "writes": ["search.ranker_model"],
+      "spec": "Learning-to-rank second stage on top of two-tower retrieval. features.py builds per (query, product) features: embedding cosine, BM25 of title, query-category match from query intents, historical CTR with Bayesian smoothing, price z-score within query, review rating. train_ranker.py trains a LightGBM LambdaMART model (objective lambdarank, NDCG@10) with query groups, position-bias correction by inverse propensity weights from a position CTR curve, and writes the model artifact + feature importance. config.yaml holds tables and hyperparameters."
+    },
+    "autocomplete": {
+      "team": "search", "author": "Yuki Tanaka", "date": "2026-08-25T09:15:00",
+      "files": ["build_index.py"],
+      "reads": ["search.query_logs"], "writes": ["search.autocomplete_index"],
+      "spec": "Builds the search-box autocomplete index: a prefix trie (implemented with dicts) of popular queries scored by time-decayed frequency (half-life 14 days) and success rate (query led to a click), with profanity filtering, dedup of near-identical suggestions ('duvet cover' vs 'duvet covers'), and top-8 suggestions cached at each trie node."
+    },
+    "trending_products": {
+      "team": "search", "author": "Tomás Herrera", "date": "2026-08-27T13:00:00",
+      "files": ["trending.py"],
+      "reads": ["sessions.events", "orders.lines"], "writes": ["recs.trending"],
+      "spec": "Computes trending products per category: exponentially time-decayed counts of views, add-to-carts and purchases with event weights, compared to a 28-day baseline to get a 'velocity' z-score; filters out low-stock and very-low-volume items; outputs top 50 per category, refreshed hourly."
+    },
+    "cart_recs": {
+      "team": "search", "author": "Tomás Herrera", "date": "2026-09-01T10:30:00",
+      "files": ["association_rules.py", "serve.py"],
+      "reads": ["orders.lines"], "writes": ["recs.cart_addons"],
+      "spec": "'Complete your order' add-ons in the cart. association_rules.py mines item pairs from order baskets (Apriori-style: min support, confidence, lift), with category-level backoff for sparse items and exclusion of same-category substitutes (don't recommend a second duvet). serve.py ranks add-ons for a cart by summing lift across cart items and caps at 4."
+    },
+    "homepage_personalization": {
+      "team": "search", "author": "Yuki Tanaka", "date": "2026-09-15T11:20:00",
+      "files": ["rank_modules.py", "README.md"],
+      "reads": ["features.customer_embeddings", "recs.trending", "recs.i2i"], "writes": ["recs.homepage_slots"],
+      "spec": "Orders the homepage modules (trending, 'because you viewed', new arrivals, sale) and fills them per customer: scores each candidate product by affinity between the customer's category-mix vector and the product category, plus trending velocity, with MMR diversification (lambda 0.7) across categories and a cold-start fallback to pure trending."
+    },
+    "elasticity_estimation": {
+      "team": "pricing", "author": "Omar Farouk", "date": "2026-08-07T09:00:00",
+      "files": ["estimate.py", "sql/weekly_sales.sql"],
+      "reads": ["orders.lines", "pricing.price_history"], "writes": ["pricing.elasticities"],
+      "spec": "Estimates own-price elasticity per category: weekly units and average price per SKU (the SQL file builds this from the two input tables), then a log-log regression log(units) ~ log(price) + week-of-year seasonality dummies + SKU fixed effects (demeaning), pooled per category, with standard errors and a shrinkage of noisy categories toward the global elasticity."
+    },
+    "markdown_optimizer": {
+      "team": "pricing", "author": "Lena Fischer", "date": "2026-08-21T15:30:00",
+      "files": ["optimize.py"],
+      "reads": ["pricing.elasticities", "inventory.stock_levels"], "writes": ["pricing.markdown_plan"],
+      "spec": "Plans end-of-season markdowns: for each SKU with excess stock, simulate weekly demand under candidate discount ladders (0/10/20/30/40%, no going back up) using the category elasticity, and choose the ladder maximizing revenue minus holding cost subject to selling through by a deadline (dynamic programming over weeks x stock buckets)."
+    },
+    "competitor_price_matching": {
+      "team": "pricing", "author": "Omar Farouk", "date": "2026-09-04T10:45:00",
+      "files": ["match_competitors.py"],
+      "reads": ["catalog.products", "pricing.competitor_listings"], "writes": ["pricing.competitor_matches"],
+      "spec": "Matches our SKUs to scraped competitor listings to monitor price gaps. Reimplements fuzzy product matching: normalize titles (lowercase, strip punctuation, unify units), block by brand and category, score candidate pairs by token-set ratio of titles plus price-ratio sanity check and size/color agreement, keep best match above threshold. Outputs our_sku, competitor, competitor_price, price_gap."
+    },
+    "promo_uplift": {
+      "team": "marketing", "author": "Grace Liu", "date": "2026-08-14T13:10:00",
+      "files": ["uplift.py", "evaluate.py"],
+      "reads": ["marketing.promo_history", "features.customer_embeddings"], "writes": ["marketing.promo_uplift"],
+      "spec": "Uplift model deciding who should get a promo code: T-learner with two gradient-boosting classifiers (treated vs control from past randomized promos) on customer features, uplift = p_treat - p_control. evaluate.py computes Qini curve and AUUC on a holdout and picks the targeting cutoff."
+    },
+    "churn_prediction": {
+      "team": "customer", "author": "Mateo Rossi", "date": "2026-08-19T10:00:00",
+      "files": ["features.py", "train.py"],
+      "reads": ["orders.lines", "sessions.events"], "writes": ["scores.p_churn"],
+      "spec": "Predicts p(no purchase in the next 90 days). features.py RECOMPUTES its own customer features from raw orders instead of using the shared customer vectors: recency/frequency/monetary (RFM) with log transforms, time-decayed category mix (half-life 90 days), plus session recency and visit frequency from events. train.py: gradient boosting classifier, time-based split, calibration with isotonic regression, writes calibrated probabilities."
+    },
+    "clv_model": {
+      "team": "customer", "author": "Kenji Watanabe", "date": "2026-08-28T14:00:00",
+      "files": ["clv.py"],
+      "reads": ["orders.lines"], "writes": ["scores.clv"],
+      "spec": "Customer lifetime value with the BG/NBD model for purchase frequency (fit by maximizing the log-likelihood with scipy.optimize) and Gamma-Gamma for average order value; outputs 12-month expected spend per customer with frequency/recency/T summary computed from orders."
+    },
+    "customer_segmentation": {
+      "team": "marketing", "author": "Grace Liu", "date": "2026-09-05T09:30:00",
+      "files": ["segment.py", "README.md"],
+      "reads": ["features.customer_embeddings"], "writes": ["marketing.segments"],
+      "spec": "Marketing segments from the shared customer vectors: standardize, PCA to 5 dims, k-means for k in 4..10 chosen by silhouette score, then name segments by their centroid profile (e.g. 'Bedding loyalists', 'Lapsed high spenders') with a rule table. README explains how marketing should use segments."
+    },
+    "email_send_time": {
+      "team": "marketing", "author": "Mateo Rossi", "date": "2026-09-09T16:00:00",
+      "files": ["send_time.py"],
+      "reads": ["marketing.email_events"], "writes": ["marketing.send_times"],
+      "spec": "Per-customer best email send hour: Beta-Binomial open rates per (customer, hour-of-week bucket) with an empirical-Bayes prior from the global hourly curve, Thompson sampling to keep exploring, timezone handling, and a fallback to the segment-level best hour for customers with few sends."
+    },
+    "next_best_offer": {
+      "team": "marketing", "author": "Grace Liu", "date": "2026-09-18T12:15:00",
+      "files": ["linucb.py", "policy.py"],
+      "reads": ["features.customer_embeddings", "marketing.segments", "marketing.promo_uplift"], "writes": ["marketing.offers"],
+      "spec": "Chooses which offer (free shipping, 10% off bedding, bundle discount, none) to show each customer with a LinUCB contextual bandit (linucb.py: per-arm ridge regression, A/b matrices, UCB with alpha) on customer vector + segment one-hot + predicted uplift; policy.py adds business guardrails (max discount exposure per week, no offers to customers with negative uplift) and logs propensities for offline evaluation."
+    },
+    "email_product_recs": {
+      "team": "marketing", "author": "Mateo Rossi", "date": "2026-09-22T10:40:00",
+      "files": ["similar_for_email.py"],
+      "reads": ["catalog.products", "orders.lines"], "writes": ["marketing.email_recs"],
+      "spec": "Product recommendations for the post-purchase email. Written by marketing without knowing about the product-page recs: for each customer's last purchased item, find the most similar catalog items by text similarity of title + description (TF-IDF vectors and cosine, top-k), excluding items already bought. This is functionally the same as item-to-item recommendations."
+    },
+    "demand_forecast": {
+      "team": "supply", "author": "Hannah Becker", "date": "2026-08-12T08:50:00",
+      "files": ["features.py", "forecast.py", "backtest.py"],
+      "reads": ["orders.lines", "pricing.markdown_plan"], "writes": ["supply.demand_forecast"],
+      "spec": "Weekly unit forecast per SKU x warehouse for 12 weeks. features.py: lags (1,2,4,52 weeks), rolling means, week-of-year, holiday flags, planned markdown depth. forecast.py: global LightGBM model with Tweedie objective, recursive multi-step forecasting, quantiles P10/P50/P90 via separate quantile models. backtest.py: rolling-origin backtest with WAPE and bias per category."
+    },
+    "replenishment": {
+      "team": "supply", "author": "Ravi Iyer", "date": "2026-09-08T13:20:00",
+      "files": ["reorder.py"],
+      "reads": ["supply.demand_forecast", "inventory.stock_levels", "supply.vendor_terms"], "writes": ["supply.purchase_orders"],
+      "spec": "Computes reorder points and order quantities: safety stock from forecast quantile spread over the vendor lead time (from vendor terms) at a 95% service level, (s, S) policy, rounding to case packs and vendor MOQ, and a budget cap that trims lowest-margin SKUs first. Emits purchase-order lines."
+    },
+    "returns_reason_classifier": {
+      "team": "supply", "author": "Ravi Iyer", "date": "2026-09-12T11:05:00",
+      "files": ["classify_returns.py"],
+      "reads": ["returns.return_requests"], "writes": ["returns.reason_labels"],
+      "spec": "Classifies customers' free-text return comments into reason codes (TOO_SMALL, COLOR_DIFFERENT, DAMAGED, QUALITY, CHANGED_MIND, LATE): text cleanup, keyword rules for high-precision cases, multinomial Naive Bayes (implemented from scratch with Laplace smoothing) for the rest, and an 'UNKNOWN' bucket under a confidence threshold."
+    },
+    "review_sentiment": {
+      "team": "reviews", "author": "Ines Duarte", "date": "2026-08-26T10:00:00",
+      "files": ["aspect_sentiment.py", "lexicon.py"],
+      "reads": ["reviews.approved"], "writes": ["reviews.aspect_sentiment"],
+      "spec": "Aspect-based sentiment for reviews: finds product aspects (softness, color, size/fit, durability, smell, shipping) via an aspect lexicon, scores sentiment in a window around each mention with a polarity lexicon (lexicon.py) handling negation ('not soft') and intensifiers ('very'), and aggregates per SKU and aspect. Overlaps with review summaries, which also counts aspect mentions."
+    },
+    "fake_review_detection": {
+      "team": "reviews", "author": "Ines Duarte", "date": "2026-09-10T15:45:00",
+      "files": ["detect_rings.py", "minhash.py"],
+      "reads": ["reviews.raw", "reviews.reviewer_devices"], "writes": ["reviews.suspicious_rings"],
+      "spec": "Detects coordinated fake-review rings: builds a reviewer graph linking accounts that share devices/IPs or post near-duplicate text (MinHash signatures + LSH banding in minhash.py, Jaccard over word shingles), finds connected components, and flags components with bursty timing (many 5-star reviews for the same SKU within 48h) and new accounts. Outputs ring id, members, evidence."
+    },
+    "feature_store": {
+      "team": "platform", "author": "Sam Okoye", "date": "2026-08-09T09:00:00",
+      "files": ["materialize.py", "definitions.yaml"],
+      "reads": ["orders.lines", "sessions.events", "catalog.products"], "writes": ["features.customer_daily", "features.product_daily"],
+      "spec": "Daily feature materialization job. definitions.yaml declares feature views (entity, source table, aggregations like count/sum/avg over 7/30/90-day windows, TTL). materialize.py parses the definitions, builds point-in-time-correct aggregations (no leakage past the as-of date) with pandas, validates schemas/nulls, and writes daily snapshots per customer and per product."
+    },
+    "ab_test_analysis": {
+      "team": "platform", "author": "Sam Okoye", "date": "2026-08-23T14:10:00",
+      "files": ["analyze.py", "cuped.py"],
+      "reads": ["experiments.assignments", "experiments.metrics"], "writes": ["experiments.results"],
+      "spec": "Standard analysis for every A/B test: sample-ratio-mismatch check (chi-square), CUPED variance reduction using the pre-period metric as covariate (cuped.py), Welch t-test for means and two-proportion z-test for conversion metrics, relative lift with delta-method confidence intervals, and Benjamini-Hochberg correction across metrics."
+    },
+    "model_monitoring": {
+      "team": "platform", "author": "Sam Okoye", "date": "2026-09-16T10:30:00",
+      "files": ["drift.py", "alerts.py"],
+      "reads": ["monitoring.prediction_logs", "features.customer_daily"], "writes": ["monitoring.drift_alerts"],
+      "spec": "Monitors production models for drift: Population Stability Index per feature with quantile bins from a reference window, Kolmogorov-Smirnov test for continuous features, prediction-distribution shift, and missing-value rate jumps. alerts.py applies thresholds (PSI > 0.2 = alert), deduplicates alerts within 24h and formats a Slack-ready message."
+    }
+  },
+
+  "duplicate_clusters": [
+    ["i2i_recs", "email_product_recs"]
+  ],
+  "partial": [
+    ["i2i_recs", "product_embeddings"],
+    ["price_model", "tag_validation"],
+    ["churn_prediction", "customer_embeddings"],
+    ["competitor_price_matching", "product_matching"],
+    ["review_sentiment", "review_summaries"],
+    ["fake_review_detection", "review_moderation"]
+  ],
+
+  "prs": {
+    "tomas/sku-dedup":       {"existing": true, "folders": {"sku_dedup": {"duplicate": ["product_matching"], "reads": ["catalog.products"], "writes": ["search.sku_groups"]}}},
+    "sofia/bundle-recs":     {"existing": true, "folders": {"bundle_recs": {"duplicate": ["i2i_recs", "product_embeddings"], "related": ["cart_recs", "email_product_recs"], "reads": ["catalog.products", "orders.lines"], "writes": ["recs.bundles"]}}},
+    "dana/listing-quality":  {"existing": true, "folders": {"listing_quality": {"duplicate": ["tag_validation"], "related": ["price_model"], "reads": ["catalog.products", "catalog.raw_tags"], "writes": ["merchant.listing_quality"]}}},
+    "noor/return-risk":      {"existing": true, "folders": {"return_risk": {"reads": ["features.customer_embeddings", "features.product_embeddings", "catalog.validated_tags"], "writes": ["scores.p_return"]}}},
+    "ben/shipping-eta":      {"existing": true, "folders": {"shipping_eta": {"reads": ["logistics.shipments"], "writes": ["logistics.eta_days"]}}},
+    "tomas/i2i-popularity":  {"existing": true, "folders": {"i2i_recs": {"duplicate": ["product_embeddings", "email_product_recs"], "reads": ["catalog.products"], "writes": ["recs.i2i"]}}},
+
+    "leo/review-ring-detector": {
+      "author": "Leo Martins", "title": "Add review ring detector",
+      "folders": {"review_ring_detector": {
+        "duplicate": ["fake_review_detection"], "related": ["review_moderation"],
+        "reads": ["reviews.raw"], "writes": ["trust.review_rings"],
+        "files": ["rings.py"],
+        "spec": "Same job as fake review detection, written independently by the trust team: clusters reviewers who post suspiciously similar review text (character 5-gram shingles, Jaccard similarity with a simple all-pairs comparison per SKU, union-find to form groups) and flags groups that reviewed the same products within a short window. Different names, no MinHash."}}
+    },
+    "omar/elasticity-bayes": {
+      "author": "Chen Wei", "title": "Hierarchical Bayesian price elasticities",
+      "folders": {"price_elasticity_v2": {
+        "duplicate": ["elasticity_estimation"],
+        "reads": ["orders.lines", "pricing.price_history"], "writes": ["pricing.elasticity_posteriors"],
+        "files": ["hierarchical.py"],
+        "spec": "Re-estimates price elasticities with partial pooling: SKU-level elasticities drawn from category-level priors, fit by an empirical-Bayes / Gibbs-style loop in numpy over log-log demand regressions on weekly units and prices. Same job as the existing elasticity estimation, different method and names."}}
+    },
+    "arjun/seo-titles": {
+      "author": "Nadia Karimi", "title": "Generate SEO titles for PDPs",
+      "folders": {"seo_titles": {
+        "duplicate": ["title_rewriter"],
+        "reads": ["catalog.products", "catalog.product_attributes"], "writes": ["content.pdp_titles"],
+        "files": ["make_titles.py"],
+        "spec": "Builds search-engine friendly product page titles: parses brand/material/size from the attributes table, orders them by a keyword-importance list, trims to 65 characters, strips promotional noise. Same job as the title rewriter; written by the content team."}}
+    },
+    "yuki/query-spellcheck": {
+      "author": "Felix Wagner", "title": "Spell correction for search queries",
+      "folders": {"query_spellcheck": {
+        "duplicate": ["query_understanding"],
+        "reads": ["search.query_logs"], "writes": ["search.spell_corrections"],
+        "files": ["spellcheck.py"],
+        "spec": "Standalone search spell checker: SymSpell-style deletion dictionary built from query-log term frequencies, max edit distance 2, plus a keyboard-adjacency bonus. Duplicates the spelling half of query understanding."}}
+    },
+    "tomas/visual-similar": {
+      "author": "Tomás Herrera", "title": "Visually similar items from image embeddings",
+      "folders": {"visual_similarity": {
+        "duplicate": ["i2i_recs", "email_product_recs"], "related": ["color_extraction", "image_quality"],
+        "reads": ["catalog.product_images"], "writes": ["recs.visual_similar"],
+        "files": ["embed_images.py", "neighbors.py"],
+        "spec": "'Similar items' for the product page based on images: embed each primary image with a pretrained CNN (torchvision ResNet-50, penultimate layer, L2-normalized), then approximate nearest neighbours (a small random-projection LSH index in neighbors.py) restricted to the same category; top 12 per SKU. Same product feature as item-to-item recs, different modality."}}
+    },
+    "sam/drift-dashboard": {
+      "author": "Priyanka Nair", "title": "Feature drift dashboard for the churn model",
+      "folders": {"drift_dashboard": {
+        "duplicate": ["model_monitoring"],
+        "reads": ["features.customer_daily", "scores.p_churn"], "writes": ["monitoring.churn_drift"],
+        "files": ["psi_report.py"],
+        "spec": "Weekly drift report for the churn model's inputs: population stability index per feature against the training window (decile bins), Jensen-Shannon distance for categoricals, and a shift check on predicted churn probabilities; renders an HTML table. Same job as model monitoring, built by the churn team."}}
+    },
+    "grace/cuped": {
+      "author": "Mateo Rossi", "title": "CUPED analysis for the email experiments",
+      "folders": {"email_experiment_stats": {
+        "duplicate": ["ab_test_analysis"], "related": ["email_send_time"],
+        "reads": ["marketing.email_events", "experiments.assignments"], "writes": ["marketing.experiment_readouts"],
+        "files": ["readout.py"],
+        "spec": "Reads out email A/B tests: open/click rates per variant, CUPED adjustment with pre-period engagement, two-proportion z-tests and confidence intervals for lift, and a 'ship / don't ship' summary. Duplicates the shared A/B analysis."}}
+    },
+    "mateo/rfm-segments": {
+      "author": "Leo Martins", "title": "RFM segments for CRM",
+      "folders": {"rfm_segments": {
+        "duplicate": ["customer_segmentation"], "related": ["customer_embeddings", "churn_prediction", "clv_model"],
+        "reads": ["orders.lines"], "writes": ["crm.rfm_segments"],
+        "files": ["rfm.py"],
+        "spec": "CRM segments from RFM quintile scores computed directly from orders (recency, frequency, monetary each scored 1-5), mapped to named segments (Champions, At Risk, Hibernating...) with a lookup table. Same job as customer segmentation, different technique."}}
+    },
+    "hannah/stockout-forecast": {
+      "author": "Ravi Iyer", "title": "Stockout risk from a demand forecast",
+      "folders": {"stockout_forecast": {
+        "duplicate": ["demand_forecast"], "related": ["replenishment"],
+        "reads": ["orders.lines", "inventory.stock_levels"], "writes": ["supply.stockout_risk"],
+        "files": ["forecast_units.py", "risk.py"],
+        "spec": "Forecasts weekly units per SKU (Holt-Winters additive seasonality implemented in numpy, season length 52) and turns it into probability of stockout within 4 weeks given current stock. Re-implements demand forecasting inside a stockout tool."}}
+    },
+    "yuki/gift-guide": {
+      "author": "Nadia Karimi", "title": "Personalized holiday gift guide",
+      "folders": {"gift_guide": {
+        "duplicate": ["homepage_personalization"],
+        "reads": ["features.customer_embeddings", "recs.trending"], "writes": ["recs.gift_guide"],
+        "files": ["gift_guide.py"],
+        "spec": "Fills the holiday gift guide page per customer: candidate gifts from trending products in giftable categories, scored by affinity between the customer's category mix and each product's category, price-band filter, diversified across categories. Essentially homepage personalization for another page."}}
+    },
+    "lena/markdown-email": {
+      "author": "Grace Liu", "title": "Markdown announcement emails per segment",
+      "folders": {"markdown_email": {
+        "reads": ["pricing.markdown_plan", "marketing.segments"], "writes": ["marketing.markdown_campaign"],
+        "files": ["build_campaign.py"],
+        "spec": "Builds the markdown announcement campaign: picks SKUs entering a markdown this week from the markdown plan, matches them to marketing segments by category affinity, and emits (segment, sku list, subject line variant) rows. Pure consumer of pricing and marketing outputs."}}
+    },
+    "marcus/rank-debugger": {
+      "author": "Felix Wagner", "title": "Search ranking debugger",
+      "folders": {"rank_debugger": {
+        "reads": ["search.ranker_model", "search.click_logs"], "writes": ["search.rank_debug_report"],
+        "files": ["debug_ranking.py"],
+        "spec": "Offline tool for search engineers: loads the ranker model artifact, replays a sample of logged queries, and reports per-query NDCG, the top features driving each result (SHAP-like contribution via tree path), and queries where the model disagrees most with clicks."}}
+    },
+    "ravi/vendor-terms": {
+      "author": "Hannah Becker", "title": "Sync vendor lead times and MOQs",
+      "folders": {"vendor_terms_sync": {
+        "reads": ["supply.vendor_portal_exports"], "writes": ["supply.vendor_terms"],
+        "files": ["sync_terms.py"],
+        "spec": "Parses the CSV exports vendors upload to the portal (lead time in days or weeks, MOQ, case pack, currency), normalizes units and currencies, validates against the previous snapshot (flag lead-time jumps > 50%), and writes the vendor terms table."}}
+    },
+    "felix/click-sessionizer": {
+      "author": "Felix Wagner", "title": "Sessionize search clicks",
+      "folders": {"click_sessionizer": {
+        "reads": ["sessions.events"], "writes": ["search.click_logs"],
+        "files": ["sessionize.py"],
+        "spec": "Turns raw session events into search click logs: groups events into search sessions (30-minute inactivity gap), attaches the query and result positions shown, marks clicks, add-to-carts and dwell time per result, and filters bots by event rate."}}
+    },
+    "leo/staff-scheduling": {
+      "author": "Leo Martins", "title": "Showroom staff scheduling",
+      "folders": {"staff_scheduling": {
+        "reads": ["stores.foot_traffic_forecast", "stores.staff_availability"], "writes": ["stores.shift_plan"],
+        "files": ["schedule.py"],
+        "spec": "Schedules showroom staff shifts: integer program (pulp) minimizing labor cost subject to coverage per hour from the foot-traffic forecast, availability, max hours per week and minimum rest between shifts."}}
+    },
+    "ravi/box-sizes": {
+      "author": "Ravi Iyer", "title": "Recommend shipping box sizes",
+      "folders": {"packaging_recommender": {
+        "reads": ["catalog.product_dimensions", "fulfillment.box_catalog"], "writes": ["fulfillment.box_assignments"],
+        "files": ["pack.py"],
+        "spec": "Chooses the smallest shipping box for each order: 3D bin-packing heuristic (first-fit decreasing with rotations) over item dimensions, with dimensional-weight cost comparison across the available boxes."}}
+    },
+    "chen/invoice-matching": {
+      "author": "Chen Wei", "title": "Three-way invoice matching",
+      "folders": {"invoice_matching": {
+        "related": ["product_matching", "competitor_price_matching"],
+        "reads": ["finance.invoices", "finance.receipts"], "writes": ["finance.invoice_exceptions"],
+        "files": ["three_way_match.py"],
+        "spec": "Accounts-payable three-way match between vendor invoices and warehouse receipts: fuzzy vendor-name matching, line matching on SKU and quantity with price tolerance (2%), and an exceptions report for mismatches. Unrelated job despite the word 'matching'."}}
+    },
+    "mateo/churn-sessions": {
+      "author": "Mateo Rossi", "title": "Churn: add browsing features",
+      "folders": {"churn_prediction": {
+        "edit_of": "churn_prediction",
+        "partial": ["customer_embeddings"], "related": ["clv_model"],
+        "reads": ["orders.lines", "sessions.events"], "writes": ["scores.p_churn"],
+        "files": ["features.py", "train.py"],
+        "spec": "Edit of the existing churn model: add browsing features (sessions in last 7/30 days, days since last product view, share of sessions with add-to-cart) to features.py and update train.py's feature list. Keep the RFM recomputation."}}
+    },
+    "lena/promo-calendar": {
+      "author": "Lena Fischer", "title": "Promo calendar + markdowns aware of promos",
+      "folders": {
+        "promo_calendar": {
+          "related": ["promo_uplift"],
+          "reads": ["marketing.promo_history"], "writes": ["pricing.promo_calendar"],
+          "files": ["calendar.py"],
+          "spec": "Builds next quarter's promo calendar from past promo performance: which categories to discount which weeks, avoiding overlaps and blackout dates, with expected incremental revenue per promo week."},
+        "markdown_optimizer": {
+          "edit_of": "markdown_optimizer",
+          "reads": ["pricing.elasticities", "inventory.stock_levels", "pricing.promo_calendar"], "writes": ["pricing.markdown_plan"],
+          "files": ["optimize.py"],
+          "spec": "Edit of the existing markdown optimizer: read the promo calendar and forbid markdowns in weeks where the category already has a promo; otherwise unchanged."}
+      }
+    }
+  }
+}

@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slopulant Watcher</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #16181d; --muted: #646b78; --line: #e3e6eb;
+    --accent: #3b5bdb; --accent-soft: #e8edff; --good: #2b8a3e; --good-soft: #e6f4ea;
+    --warn: #b35c00; --warn-soft: #fff1e0; --bad: #c92a2a; --bad-soft: #fdecec;
+    --bar: #c5cfee; --code-bg: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111317; --panel: #1a1d23; --ink: #e8eaee; --muted: #959cab; --line: #2b2f37;
+      --accent: #8ea6ff; --accent-soft: #232b45; --good: #69db7c; --good-soft: #1b3324;
+      --warn: #ffb35c; --warn-soft: #3a2a14; --bad: #ff8787; --bad-soft: #3d1d1d;
+      --bar: #34406b; --code-bg: #14161b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1100px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 16px; margin-right: auto; }
+  .brand small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    background: var(--code-bg); color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.live { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+  .dot.stale { background: var(--bad); }
+  .dot.starting { background: var(--warn); }
+
+  nav { max-width: 1100px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; }
+  nav button { border: 0; background: none; color: var(--muted); padding: 8px 12px; font: inherit; cursor: pointer;
+    border-bottom: 2px solid transparent; }
+  nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  .hint { color: var(--muted); margin: 0 0 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .panel-head { padding: 12px 16px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .panel-head h3 { margin: 0; font-size: 15px; }
+  .meta { color: var(--muted); font-size: 12.5px; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; }
+  .tag.done { background: var(--good-soft); color: var(--good); }
+  .tag.pending { background: var(--warn-soft); color: var(--warn); }
+  .tag.error { background: var(--bad-soft); color: var(--bad); }
+  .tag.closed { background: var(--code-bg); color: var(--muted); }
+  .tag.cand { background: var(--accent-soft); color: var(--accent); }
+
+  .card-desc { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .card-desc .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chip { padding: 1px 7px; border-radius: 5px; background: var(--code-bg); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .arrow { color: var(--muted); }
+  .chip.kw { background: var(--accent-soft); color: var(--accent); font-family: inherit; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+    font-weight: 600; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  tr.dim td { opacity: .55; }
+  .rank { color: var(--muted); width: 36px; }
+  .folder { font-weight: 600; }
+  .scorecell { width: 190px; }
+  .scorebar { position: relative; height: 18px; background: var(--code-bg); border-radius: 4px; overflow: hidden; }
+  .scorebar span { position: absolute; inset: 0 auto 0 0; background: var(--bar); }
+  .scorebar.flow span { background: var(--good-soft); }
+  .scorebar b { position: relative; padding-left: 6px; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; }
+  .floor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); opacity: .6; }
+  .why { font-size: 12.5px; color: var(--muted); }
+  .why .mono { color: var(--ink); }
+  .flow { color: var(--good); font-weight: 600; }
+  .more { display: block; width: 100%; padding: 8px; border: 0; border-top: 1px solid var(--line);
+    background: none; color: var(--accent); cursor: pointer; font: inherit; font-size: 12.5px; }
+  .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+
+  .try-grid { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input, textarea, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 7px; padding: 7px 10px; }
+  textarea { width: 100%; min-height: 280px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; tab-size: 4; }
+  button.primary { background: var(--accent); color: white; border: 0; border-radius: 7px; padding: 8px 16px;
+    font: inherit; font-weight: 600; cursor: pointer; }
+  button.primary:disabled { opacity: .5; cursor: progress; }
+  .index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .index-grid .panel { margin: 0; }
+  .index-grid p { margin: 0; padding: 12px 16px; font-size: 13px; }
+  .index-grid .chips { padding: 0 16px 12px; }
+  pre.err { white-space: pre-wrap; color: var(--bad); padding: 12px 16px; margin: 0; }
+  @media (max-width: 640px) {
+    .scorecell { width: 110px; }
+    td, th { padding: 8px 10px; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">Slopulant <small>PR overlap watcher</small></div>
+    <span class="pill" id="status"><span class="dot starting"></span>connecting…</span>
+    <span class="pill" id="repo"></span>
+    <span class="pill mono" id="models"></span>
+  </div>
+  <nav>
+    <button data-tab="prs" class="on">Pull requests</button>
+    <button data-tab="try">Try it</button>
+    <button data-tab="index">Index (main)</button>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-prs">
+    <p class="hint">Open a PR on the company repo and it shows up here within one poll.
+      For each folder the PR touches, every other folder on <code>main</code> is ranked.
+      <span class="tag cand">candidate</span> rows are what the next stage would receive
+      (top <span id="k"></span> above <span id="floor"></span>, plus any data-flow link).
+      Score = mean of description and keyword similarity (code match shown as evidence). Data-flow links (green) are always surfaced.</p>
+    <div id="prs"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section id="tab-try" hidden>
+    <p class="hint">Paste the code of a new system and score it against <code>main</code>
+      exactly like a PR would be, without opening one. It takes a few seconds: the local LLM writes the card first.</p>
+    <div class="panel">
+      <div class="try-grid">
+        <div class="row">
+          <label>Folder name <input id="try-folder" value="spam_filter_v2" size="22"></label>
+          <label>Example
+            <select id="try-preset"></select>
+          </label>
+          <button class="primary" id="try-go">Score against main</button>
+          <span class="meta" id="try-status"></span>
+        </div>
+        <textarea id="try-code" spellcheck="false"></textarea>
+      </div>
+    </div>
+    <div id="try-result"></div>
+  </section>
+
+  <section id="tab-index" hidden>
+    <p class="hint">What the watcher knows about each folder on <code>main</code>: the LLM-written card
+      and the tables it reads and writes. Cached by git tree hash, rebuilt only when a folder changes.</p>
+    <div class="index-grid" id="index"></div>
+  </section>
+</main>
+
+<script>
+const PRESETS = {
+  "Duplicate: review spam filter": ["spam_filter_v2", `"""Spam filter for product reviews.
+
+Drop reviews with links or banned words before they're published.
+
+Input:  reviews.raw (review_id, sku, text)
+Output: reviews.clean
+"""
+import re
+
+BANNED = {"scam", "fake", "garbage", "idiot"}
+
+
+def is_spam(text):
+    lowered = text.lower()
+    if re.search(r"https?://", lowered):
+        return True
+    words = re.findall(r"[a-z]+", lowered)
+    return any(w in BANNED for w in words)
+
+
+def filter_reviews(reviews):
+    kept = []
+    for r in reviews:
+        if not is_spam(r["text"]):
+            kept.append(r)
+    return kept
+`],
+  "Upstream user: customer LTV": ["customer_ltv", `"""Customer lifetime value.
+
+Predicts 12-month spend per customer for marketing budget allocation.
+
+Input:  features.customer_embeddings (customer_id, vector)
+Output: scores.customer_ltv (customer_id, ltv)
+"""
+import numpy as np
+
+
+def ltv(customer_vec, weights, base=50.0):
+    return float(base * np.exp(customer_vec @ weights))
+
+
+def score_all(customer_embeddings, weights):
+    out = {}
+    for customer_id, vec in customer_embeddings.items():
+        out[customer_id] = round(ltv(vec, weights), 2)
+    return out
+`],
+  "Duplicate: similar products": ["similar_products", `"""Similar products carousel.
+
+Bag-of-words cosine similarity between product titles + descriptions.
+
+Input:  catalog.products (sku, title, description)
+Output: recs.similar (sku, other_sku, score)
+"""
+from collections import Counter
+import math
+
+
+def bow(text):
+    return Counter(w for w in text.lower().split() if len(w) > 2)
+
+
+def cosine(a, b):
+    dot = sum(a[w] * b[w] for w in a)
+    na = math.sqrt(sum(v * v for v in a.values()))
+    nb = math.sqrt(sum(v * v for v in b.values()))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def similar(products, k=5):
+    vecs = {p["sku"]: bow(p["title"] + " " + p["description"]) for p in products}
+    out = {}
+    for a in vecs:
+        scored = sorted(((b, cosine(vecs[a], vecs[b])) for b in vecs if b != a), key=lambda x: -x[1])
+        out[a] = scored[:k]
+    return out
+`],
+  "Unrelated: warehouse slotting": ["warehouse_slotting", `"""Warehouse slotting.
+
+Move fast-moving SKUs to bins closest to the packing station.
+
+Input:  logistics.picks (sku, bin, ts)
+Output: logistics.slot_plan (sku, bin)
+"""
+from collections import Counter
+
+
+def pick_velocity(picks, days=30):
+    counts = Counter(p["sku"] for p in picks)
+    return {sku: n / days for sku, n in counts.items()}
+
+
+def slot_plan(picks, bins_by_distance):
+    velocity = pick_velocity(picks)
+    ranked = sorted(velocity, key=lambda s: -velocity[s])
+    return dict(zip(ranked, bins_by_distance))
+`],
+  "Blank": ["my_system", ""],
+};
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const expanded = new Set();
+let lastState = null;
+
+// Tabs
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
+  ["prs", "try", "index"].forEach((t) => $("#tab-" + t).hidden = t !== b.dataset.tab);
+});
+
+function flowLabel(flow) {
+  const [dir, tables] = flow.split(":");
+  return `<span class="flow">${dir === "upstream" ? "↑ reads its output" : "↓ it reads ours"}</span>
+    <span class="mono">${esc(tables)}</span>`;
+}
+
+function rowsTable(rows, key, floor) {
+  const showAll = expanded.has(key);
+  const visible = showAll ? rows : rows.filter((r) => r.candidate);
+  const hidden = rows.length - visible.length;
+  const body = visible.map((r) => {
+    const why = (r.dataflow ? flowLabel(r.dataflow) + "<br>" : "") +
+        `description ${r.card_score.toFixed(2)} · keywords ${r.kw_score.toFixed(2)} · code ${r.code_score.toFixed(2)}` +
+        (r.kw_match ? `<br>shared: <span class="mono">${esc(r.kw_match)}</span>` : "") +
+        (r.code_match ? `<br><span class="mono">${esc(r.code_match)}</span>` : "");
+    return `<tr class="${r.candidate ? "" : "dim"}">
+      <td class="rank">${r.rank}</td>
+      <td><span class="folder">${esc(r.repo_id)}</span> ${r.candidate ? '<span class="tag cand">candidate</span>' : ""}</td>
+      <td class="scorecell"><div class="scorebar ${r.dataflow ? "flow" : ""}">
+        <span style="width:${Math.max(0, Math.min(1, r.score)) * 100}%"></span>
+        <i class="floor" style="left:${floor * 100}%"></i><b>${r.score.toFixed(2)}</b></div></td>
+      <td class="why">${why}</td></tr>`;
+  }).join("");
+  const empty = visible.length ? "" : `<tr><td colspan="4" class="empty">No candidates: nothing on main clears ${floor}.</td></tr>`;
+  const more = hidden > 0 ? `<button class="more" data-key="${esc(key)}">Show all ${rows.length} folders</button>`
+    : (showAll && rows.some((r) => !r.candidate) ? `<button class="more" data-key="${esc(key)}">Candidates only</button>` : "");
+  return `<table><thead><tr><th>#</th><th>Folder on main</th><th>Score</th><th class="hide-sm">Why</th></tr></thead>
+    <tbody>${body}${empty}</tbody></table>${more}`;
+}
+
+function cardBlock(card, title) {
+  if (!card) return "";
+  const io = `<div class="chips">${card.inputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("") || '<span class="meta">no inputs found</span>'}
+    <span class="arrow">→</span>${card.outputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("") || '<span class="meta">no outputs found</span>'}</div>`;
+  const kws = `<div class="chips">${(card.keywords || []).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>`;
+  return `<div class="card-desc"><div class="label">${esc(title)}</div><div>${esc(card.description)}</div>${kws}${io}
+    <details><summary>${card.func_names.length} functions embedded</summary>
+    <div class="chips" style="margin-top:6px">${card.func_names.map((f) => `<span class="chip">${esc(f)}</span>`).join("")}</div></details></div>`;
+}
+
+function renderPRs(s) {
+  if (!s.prs.length) {
+    $("#prs").innerHTML = `<div class="panel"><div class="empty">No PRs seen yet. Open one on
+      <a href="https://github.com/${esc(s.repo)}/pulls" target="_blank">${esc(s.repo)}</a>.</div></div>`;
+    return;
+  }
+  $("#prs").innerHTML = s.prs.map((pr) => {
+    const status = !pr.open ? "closed" : pr.status;
+    const stale = pr.scored_sha && pr.scored_sha !== pr.head_sha;
+    const statusText = {done: "scored", pending: "scoring…", error: "error", closed: "closed", new: "queued"}[status] || status;
+    const folders = pr.folders.map((f) => cardBlock(f.card, `What the LLM thinks ${f.folder}/ is (on the PR branch)`)
+      + rowsTable(f.rows, `${pr.number}:${f.folder}`, s.min_candidate_score)).join("");
+    const body = folders || (pr.status === "error"
+      ? `<pre class="err">${esc(pr.error)}</pre>`
+      : `<div class="empty">${pr.status === "done" ? "This PR doesn't touch any top-level folder." : "Waiting for the watcher…"}</div>`);
+    return `<div class="panel">
+      <div class="panel-head">
+        <h3><a href="${esc(pr.url)}" target="_blank">#${pr.number}</a> ${esc(pr.title)}</h3>
+        <span class="tag ${status === "new" ? "pending" : status}">${statusText}</span>
+        <span class="meta">${esc(pr.commit_author || pr.author)} · <span class="mono">${esc(pr.branch)}</span> @ <span class="mono">${pr.head_sha.slice(0, 7)}</span>
+        ${stale ? ` · showing results for <span class="mono">${pr.scored_sha.slice(0, 7)}</span>` : ""}</span>
+      </div>${body}</div>`;
+  }).join("");
+}
+
+function renderIndex(s) {
+  $("#index").innerHTML = s.index.map((c) => c.pending
+    ? `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="tag pending">indexing…</span></div></div>`
+    : `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="meta">${c.func_names.length} functions</span></div>
+       <p>${esc(c.description)}</p>
+       <div class="chips">${(c.keywords || []).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>
+       <div class="chips">${c.inputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="arrow">→</span>${c.outputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div></div>`
+  ).join("") || '<div class="empty">Indexing main…</div>';
+}
+
+function renderHeader(s) {
+  const age = s.last_tick ? s.now - s.last_tick : null;
+  let dot = "starting", text = "first pass running…";
+  if (age !== null) {
+    const live = age < s.poll_seconds * 3;
+    dot = live ? "live" : "stale";
+    text = live ? `watching · last poll ${Math.round(age)}s ago` : `watcher stopped? last poll ${Math.round(age)}s ago`;
+  }
+  $("#status").innerHTML = `<span class="dot ${dot}"></span>${text}`;
+  $("#repo").innerHTML = `<a href="https://github.com/${esc(s.repo)}" target="_blank">${esc(s.repo)}</a>` +
+    (s.base_sha ? ` <span class="mono">main@${s.base_sha.slice(0, 7)}</span>` : "");
+  $("#models").textContent = `${s.llm_model.split("/").pop()} · ${s.embed_model.split("/").pop()}`;
+  $("#k").textContent = s.top_k;
+  $("#floor").textContent = s.min_candidate_score;
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/api/state");
+    const s = await res.json();
+    if (s.error) throw new Error(s.error);
+    lastState = s;
+    renderHeader(s); renderPRs(s); renderIndex(s);
+  } catch (e) {
+    $("#status").innerHTML = `<span class="dot stale"></span>can't reach server: ${esc(e.message)}`;
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const key = e.target.dataset?.key;
+  if (!key) return;
+  expanded.has(key) ? expanded.delete(key) : expanded.add(key);
+  if (key.startsWith("try:")) renderTry(); else if (lastState) renderPRs(lastState);
+});
+
+// Try it
+let tryResult = null;
+const preset = $("#try-preset");
+preset.innerHTML = Object.keys(PRESETS).map((k) => `<option>${esc(k)}</option>`).join("");
+preset.onchange = () => { const [f, c] = PRESETS[preset.value]; $("#try-folder").value = f; $("#try-code").value = c; };
+preset.onchange();
+
+function renderTry() {
+  if (!tryResult) return;
+  const floor = lastState ? lastState.min_candidate_score : 0.55;
+  $("#try-result").innerHTML = `<div class="panel">
+    <div class="panel-head"><h3>${esc(tryResult.card.folder)}/</h3><span class="meta">scored in ${tryResult.seconds}s</span></div>
+    ${cardBlock(tryResult.card, "What the LLM thinks your code is")}
+    ${rowsTable(tryResult.rows, "try:" + tryResult.card.folder, floor)}</div>`;
+}
+
+$("#try-go").onclick = async () => {
+  const btn = $("#try-go");
+  btn.disabled = true;
+  $("#try-status").textContent = "Writing card and scoring…";
+  try {
+    const res = await fetch("/api/try", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({folder: $("#try-folder").value, code: $("#try-code").value}),
+    });
+    const out = await res.json();
+    if (out.error) throw new Error(out.error);
+    tryResult = out;
+    $("#try-status").textContent = "";
+    renderTry();
+  } catch (e) {
+    $("#try-status").textContent = "Failed: " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+</body>
+</html>

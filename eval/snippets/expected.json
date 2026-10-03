@@ -1,0 +1,17 @@
+{
+  "_doc": "Hand-written snippets: name -> {duplicate: folders on main it re-implements, related: plausible but not counted}. No duplicates = unrelated (negative).",
+  "review_toxicity": {"duplicate": ["review_moderation"], "related": ["fake_review_detection"]},
+  "review_highlights": {"duplicate": ["review_summaries"], "related": ["review_sentiment"]},
+  "catalog_merge": {"duplicate": ["product_matching"], "related": ["competitor_price_matching"]},
+  "utils_v2": {"duplicate": ["tag_validation"], "related": ["price_model", "attribute_extraction"]},
+  "product_vectors_v2": {"duplicate": ["product_embeddings"], "related": ["i2i_recs", "email_product_recs"]},
+  "semantic_search": {"duplicate": ["two_tower_search"], "related": ["search_ranker"]},
+  "related_items": {"duplicate": ["i2i_recs", "email_product_recs"], "related": ["product_embeddings"]},
+  "dynamic_pricing": {"duplicate": ["price_model"], "related": []},
+  "purchase_propensity": {"duplicate": ["customer_intent"], "related": ["churn_prediction"]},
+  "customer_profiles": {"duplicate": ["customer_embeddings"], "related": ["churn_prediction", "clv_model"]},
+  "inventory_forecast": {"duplicate": ["demand_forecast"], "related": ["replenishment"]},
+  "email_ab_test": {"duplicate": ["ab_test_analysis"], "related": []},
+  "fraud_scoring": {"duplicate": [], "related": []},
+  "image_thumbnails": {"duplicate": [], "related": ["image_quality"]}
+}
