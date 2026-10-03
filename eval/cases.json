@@ -288,5 +288,24 @@
         "duplicate"
       ]
     }
+  },
+  "priyanka/item-vectors": {
+    "catalog_vectors": {
+      "email_product_recs": [
+        "related"
+      ],
+      "i2i_recs": [
+        "related"
+      ],
+      "product_embeddings": [
+        "duplicate"
+      ],
+      "tag_validation": [
+        "upstream"
+      ],
+      "two_tower_search": [
+        "related"
+      ]
+    }
   }
 }

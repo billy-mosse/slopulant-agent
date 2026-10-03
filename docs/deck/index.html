@@ -133,6 +133,127 @@
   .stack .base { position: absolute; left: 72px; right: 72px; top: 650px; text-align: center; padding: 14px; border-radius: 12px;
     border: 1px dashed rgba(255,255,255,.18); color: var(--muted); font: 500 16px "JetBrains Mono", monospace; }
 
+  /* --- semantic example --- */
+  .sem .head { position: absolute; left: 72px; top: 46px; right: 72px; }
+  .sem h2 { font-size: 44px; line-height: 1.06; }
+  .sem h2 em.accent { color: var(--cyan); }
+  .bigfile { left: 72px; top: 158px; width: 360px; height: 640px; display: flex; flex-direction: column; }
+  .bigfile .file { font-size: 12px; }
+  .minimap { margin: 0; padding: 8px 12px; flex: 1; overflow: hidden; font: 400 3.6px/4.1px "JetBrains Mono", monospace; color: #8b949e;
+    background: linear-gradient(90deg, rgba(63,185,80,.10), rgba(63,185,80,.04)); white-space: pre;
+    -webkit-mask-image: linear-gradient(#000 80%, transparent); mask-image: linear-gradient(#000 80%, transparent); }
+  .more-lines { padding: 8px 14px; font: 500 13px "JetBrains Mono", monospace; color: var(--gh-muted); border-top: 1px solid var(--gh-border); }
+  .flowarrow { position: absolute; top: 420px; text-align: center; font-size: 44px; color: rgba(245,242,255,.45); line-height: 1; }
+  .flowarrow span { display: block; font: 500 12px "JetBrains Mono", monospace; color: var(--muted); margin-bottom: 4px; white-space: nowrap; }
+  .flowarrow.a1 { left: 436px; width: 92px; }
+  .topiccard { position: absolute; top: 158px; box-sizing: border-box; border-radius: 14px; padding: 18px 20px; display: grid; gap: 10px; align-content: start;
+    background: var(--gh-canvas); border: 1px solid var(--gh-border); }
+  .topiccard.pr-topic { left: 530px; width: 400px; border-color: rgba(102,217,255,.45); }
+  .topiccard.ex-topic { left: 1090px; width: 438px; border-color: rgba(255,62,200,.45); }
+  .tc-label { font: 600 12.5px "JetBrains Mono", monospace; letter-spacing: .04em; color: var(--muted); }
+  .tc-label b { color: var(--ink); }
+  .tc-name { font: 800 26px/1.1 "Bricolage Grotesque", sans-serif; }
+  .topiccard p { margin: 0; font-size: 15.5px; line-height: 1.45; color: #ddd8ee; }
+  .kchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .kchip { font-size: 12.5px; padding: 2px 9px; border-radius: 999px; background: rgba(110,118,129,.18); color: #b9b4c8; }
+  .kchip.shared { background: rgba(255,62,200,.16); color: #ffb3ea; box-shadow: inset 0 0 0 1px rgba(255,62,200,.45); }
+  .tc-io { font-size: 13px; color: var(--muted); }
+  .tc-io code { font: 500 12px "JetBrains Mono", monospace; background: rgba(110,118,129,.2); padding: 1px 5px; border-radius: 4px; color: #c9d1d9; }
+  .match { position: absolute; left: 936px; width: 148px; top: 250px; display: grid; justify-items: center; gap: 4px; text-align: center; }
+  .m-score { font: 800 46px/1 "Bricolage Grotesque", sans-serif; color: var(--magenta); }
+  .m-sub, .m-rank { font: 500 12.5px/1.3 "JetBrains Mono", monospace; color: var(--muted); }
+  .m-line { width: 128px; height: 3px; margin: 8px 0; background: linear-gradient(90deg, var(--cyan), var(--magenta)); border-radius: 2px; position: relative; }
+  .m-line::after { content: ""; position: absolute; right: -2px; top: -5px; border: 6.5px solid transparent; border-left: 10px solid var(--magenta); border-right: 0; }
+  .verdict { position: absolute; left: 530px; right: 72px; top: 560px; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center;
+    background: rgba(181,71,8,.08); border: 1px solid rgba(255,166,77,.45); border-radius: 12px; padding: 14px 18px; }
+  .verdict .v { border: 0; padding: 0; background: none; color: #ffc68a; font-size: 17px; white-space: nowrap; }
+  .v-why { font-size: 15.5px; color: #e8dccc; line-height: 1.45; }
+  .sem-note { position: absolute; left: 530px; top: 675px; font-size: 15px; color: var(--muted); }
+
+  /* --- channels --- */
+  .channels { background: radial-gradient(1000px 600px at 50% -20%, rgba(102,217,255,.12), transparent 60%), var(--void); }
+  .channels .head, .feedback .head { position: absolute; left: 72px; top: 52px; right: 72px; }
+  .channels h2, .feedback h2 { font-size: 50px; line-height: 1.05; }
+  .channels h2 em.accent { color: var(--cyan); }
+  .feedback h2 em.accent { color: var(--magenta); }
+  .apps { position: absolute; left: 72px; right: 72px; top: 280px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; align-items: start; }
+  .app { display: grid; grid-template-rows: auto 1fr; gap: 12px; min-width: 0; }
+  .app-name { display: flex; align-items: center; gap: 10px; font: 700 22px "Bricolage Grotesque", sans-serif; }
+  .app-name img { width: 28px; height: 28px; object-fit: contain; }
+  img.mono { filter: invert(1) brightness(.9); }
+  .mock { border-radius: 12px; padding: 14px; font: 400 14.5px/1.45 "IBM Plex Sans", -apple-system, sans-serif; overflow: hidden; display: grid; gap: 10px; align-content: start; }
+  .mock p { margin: 0; }
+  .mock code { font: 500 12.5px "JetBrains Mono", monospace; padding: 1px 4px; border-radius: 4px; }
+  .dotav { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; font: 700 11px "JetBrains Mono"; color: #07070b; flex: none; }
+  .dotav.oc { background: linear-gradient(135deg, var(--magenta), var(--cyan)); }
+  .dotav.sq { border-radius: 6px; width: 34px; height: 34px; }
+  .rx { display: flex; gap: 6px; }
+  .rx span { font-size: 12.5px; padding: 1px 8px; border-radius: 999px; border: 1px solid #30363d; color: #8b949e; }
+  .rx span.on { border-color: rgba(47,129,247,.6); background: rgba(47,129,247,.15); color: #a5c8ff; }
+  .rx.light span { border-color: #ddd; color: #555; background: #f6f6f6; }
+  .rx.light span.on { border-color: #1d9bd1; background: #e8f5fa; color: #1264a3; }
+  .rx.dark span { border: 0; background: #2b2d31; color: #b5bac1; }
+  .rx.dark span.on { background: #3b405a; color: #dee0fc; box-shadow: inset 0 0 0 1px #5865f2; }
+  /* GitHub */
+  .gh-mock { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; }
+  .gh-mock code { background: rgba(110,118,129,.25); }
+  .gm-bar { font-size: 14px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+  .gm-open { background: #238636; color: #fff; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+  .gm-comment { border: 1px solid #30363d; border-radius: 8px; padding: 10px; display: grid; gap: 8px; }
+  .gm-who { display: flex; align-items: center; gap: 7px; color: #8b949e; font-size: 13px; }
+  .gm-who b { color: #e6edf3; }
+  .gm-bot { border: 1px solid #30363d; border-radius: 999px; padding: 0 6px; font-size: 11px; }
+  .gm-table { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: #ffa198; background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.4); border-radius: 6px; padding: 5px 8px; }
+  /* Gmail */
+  .gmail { background: #fff; color: #202124; }
+  .gmail code { background: #f1f3f4; }
+  .gl-subject { font: 400 19px/1.3 "IBM Plex Sans", sans-serif; }
+  .gl-from { display: flex; gap: 10px; align-items: center; font-size: 13.5px; }
+  .gl-from span { color: #5f6368; }
+  .gl-btn { justify-self: start; background: #0b57d0; color: #fff; border-radius: 999px; padding: 6px 16px; font-weight: 500; font-size: 13.5px; }
+  /* Slack */
+  .slack { background: #fff; color: #1d1c1d; padding: 0; gap: 0; }
+  .slack code { background: #f4ede4; color: #c01343; }
+  .sl-chan { background: #4a154b; color: #fff; font-weight: 700; padding: 9px 14px; }
+  .sl-msg { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 12px 14px 4px; }
+  .sl-msg p { margin-top: 2px; }
+  .sl-app { background: #e8e8e8; color: #616061; font-size: 10.5px; font-weight: 700; padding: 0 4px; border-radius: 3px; }
+  .sl-time { color: #616061; font-size: 12px; }
+  .sl-at { color: #1264a3; background: #e8f5fa; border-radius: 3px; padding: 0 2px; }
+  /* Discord */
+  .discord { background: #313338; color: #dbdee1; padding: 0; gap: 0; }
+  .dc-chan { background: #2b2d31; color: #f2f3f5; font-weight: 600; padding: 9px 14px; border-bottom: 1px solid #1f2023; }
+  .dc-msg { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 12px 14px; }
+  .dc-bot { color: #c9a7ff; }
+  .dc-tag { background: #5865f2; color: #fff; font-size: 10.5px; font-weight: 700; padding: 0 4px; border-radius: 3px; }
+  .dc-time { color: #949ba4; font-size: 12px; }
+  .dc-embed { margin: 6px 0 8px; background: #2b2d31; border-left: 4px solid #ff3ec8; border-radius: 4px; padding: 8px 10px; display: grid; gap: 4px; }
+  .dc-embed span { color: #f0a0d8; font-size: 13px; }
+
+  /* --- feedback --- */
+  .feedback { background: radial-gradient(900px 600px at 100% 110%, rgba(255,62,200,.12), transparent 60%), var(--void); }
+  .fb-left { position: absolute; left: 72px; top: 190px; width: 640px; display: grid; gap: 14px; }
+  .fb-title { font: 700 24px "Bricolage Grotesque", sans-serif; }
+  .fb-stream { display: grid; gap: 8px; }
+  .fb-row { display: grid; grid-template-columns: 26px 30px 1fr auto; gap: 10px; align-items: center; background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 10px; padding: 9px 14px; font-size: 16px; }
+  .fb-row img { width: 22px; height: 22px; object-fit: contain; }
+  .fb-row .emo { font-size: 20px; }
+  .fb-row .pair { font: 500 14.5px "JetBrains Mono", monospace; color: #e4defa; }
+  .fb-row .who { color: var(--muted); font-size: 14px; }
+  .fb-note { color: var(--muted); font-size: 15px; }
+  .fb-arrow { position: absolute; left: 742px; top: 400px; font-size: 56px; color: rgba(245,242,255,.35); }
+  .fb-box { position: absolute; left: 820px; right: 72px; top: 178px; border: 1px solid rgba(255,62,200,.45); border-radius: 18px; padding: 22px 26px;
+    background: rgba(13,17,23,.7); display: grid; gap: 18px; align-content: start; }
+  .use { display: grid; gap: 10px; }
+  .use-h { display: flex; align-items: center; gap: 10px; font: 600 19px "IBM Plex Sans", sans-serif; }
+  .dial.compact { padding: 10px 14px 12px; gap: 7px; }
+  .dial.compact .dial-name { font-size: 15px; }
+  .shots { display: grid; gap: 8px; }
+  .shot { border-radius: 8px; padding: 8px 12px; font-size: 14.5px; line-height: 1.4; border: 1px solid; }
+  .shot b { margin-right: 6px; }
+  .shot.yes { border-color: rgba(63,185,80,.5); background: rgba(63,185,80,.1); color: #c9f0cf; }
+  .shot.no { border-color: rgba(248,81,73,.5); background: rgba(248,81,73,.1); color: #ffc9c4; }
+
   /* --- 4: future work --- */
   .s4 { background: radial-gradient(900px 600px at 95% 105%, rgba(102,217,255,.12), transparent 60%),
                     radial-gradient(800px 500px at 0% 0%, rgba(255,62,200,.10), transparent 60%), var(--void); }
@@ -204,11 +325,11 @@
     <div class="shade"></div>
     <div class="copy">
       <div class="eyebrow">The problem</div>
-      <h1>Big companies build the same thing twice. <em class="accent">Now at AI speed.</em></h1>
+      <h1>Big companies build the same thing twice, <em class="accent">and the copies don't look alike.</em></h1>
       <ul>
         <li><span>Teams can't see each other's work: the churn model, the recommender, the A/B readout get <b>rebuilt one org over</b>.</span></li>
-        <li><span>AI multiplied velocity: <b>more PRs, more systems</b>, and PMs can no longer keep track of all of it.</span></li>
-        <li><span>The bill: duplicate pipelines that drift apart, and <b>nobody knows who to ask</b>.</span></li>
+        <li><span>Teams ship <b>much faster than before</b>: more PRs, more systems, and PMs can't keep track of all of it.</span></li>
+        <li><span>Duplicates rarely look alike: different names, libraries, techniques. <b>Grep and regex miss them</b>; catching them takes understanding what the code is for.</span></li>
       </ul>
     </div>
   </section>
@@ -382,125 +503,342 @@
   </section>
 
   <!-- 3 · EXAMPLE -->
-  <section class="slide s3" aria-label="Example: PR 28">
+  <section class="slide s3 sem" aria-label="Example: item vectors">
     <div class="head">
-      <div class="eyebrow">Example · PR #28</div>
-      <h2>Chen's promo-targeting model <em class="accent">already exists</em>, one team over</h2>
+      <div class="eyebrow">Example · branch priyanka/item-vectors</div>
+      <h2>Different code, <em class="accent">same job</em>: Priyanka is rebuilding product embeddings</h2>
     </div>
 
-    <div class="gh pr" id="pr-card">
-      <div class="bar"><span class="state open">⟟ Open</span><span class="title">Growth toolkit: promo targeting + send windows <span>#28</span></span></div>
-      <div class="sub" style="padding:8px 16px;border-bottom:1px solid var(--gh-border)"><b>Chen Wei</b> wants to merge 1 commit into <b>main</b> from <b>chen/growth-toolkit</b></div>
-      <div class="file"><span class="plus">+124</span> growth_toolkit/promo_targeting.py</div>
-      <div class="code">
-        <div class="ln add"><span class="n">63</span><span class="g">+</span><span><span class="k">def</span> <span class="f">fit</span>(df, E):</span></div>
-        <div class="ln add"><span class="n">64</span><span class="g">+</span><span>    X = design(df, E, df[<span class="str">"treated"</span>])  <span class="c"># treatment as a feature</span></span></div>
-        <div class="ln add hl"><span class="n">65</span><span class="g">+</span><span>    <span class="k">return</span> <span class="nb">HistGradientBoostingClassifier</span>(**GB_PARAMS).fit(X, …)</span></div>
-        <div class="gap">⋯</div>
-        <div class="ln add"><span class="n">68</span><span class="g">+</span><span><span class="k">def</span> <span class="f">uplift</span>(model, df, E):</span></div>
-        <div class="ln add"><span class="n">70</span><span class="g">+</span><span>    p1 = model.predict_proba(design(df, E, ones))[:, <span class="nb">1</span>]</span></div>
-        <div class="ln add"><span class="n">71</span><span class="g">+</span><span>    p0 = model.predict_proba(design(df, E, zeros))[:, <span class="nb">1</span>]</span></div>
-        <div class="ln add hl" id="pr-fn"><span class="n">72</span><span class="g">+</span><span>    <span class="k">return</span> p1 - p0  <span class="c"># incremental conversion</span></span></div>
-      </div>
+    <div class="gh bigfile">
+      <div class="bar"><span class="state open">⟟ PR</span><span class="title" style="font-size:16px">Add item vectors for search &amp; recs</span></div>
+      <div class="sub" style="padding:7px 14px;border-bottom:1px solid var(--gh-border)"><b>Priyanka Nair</b> · ML platform</div>
+      <div class="file"><span class="plus">+520</span> catalog_vectors/build_item_vectors.py</div>
+      <pre class="minimap" aria-label="The first 175 of 520 lines of the file, too small to read">&quot;&quot;&quot;Dense item vectors for the Slopulent Living catalog.
+
+Produces one fixed-width, L2-normalised vector per SKU from three signal blocks:
+
+* text   -- TF-IDF over cleaned product title + description (word 1-2 grams)
+* tags   -- multi-hot over validated merchandising tags, IDF-weighted
+* category -- one-hot over the leaf category
+
+The blocks are weighted, horizontally stacked and projected with TruncatedSVD
+(latent semantic analysis) down to ``n_components`` columns. The fitted
+vectorizer, tag vocabulary, category vocabulary and SVD are persisted next to a
+model version string so that vectors can be reproduced and audited later.
+
+Author: Priyanka Nair (ML Platform)
+&quot;&quot;&quot;
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import html
+import json
+import logging
+import re
+import sys
+import unicodedata
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable, Sequence
+
+import joblib
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp
+from sklearn.decomposition import TruncatedSVD
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import normalize
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+
+try:  # faiss is optional; brute-force numpy search is the fallback.
+    import faiss  # type: ignore[import-not-found]
+
+    _HAS_FAISS = True
+except ImportError:  # pragma: no cover - depends on the runtime image
+    faiss = None
+    _HAS_FAISS = False
+
+log = logging.getLogger(&quot;catalog_vectors&quot;)
+
+PRODUCTS_SQL = &quot;&quot;&quot;
+SELECT p.sku, p.title, p.description, p.category_path, p.updated_at
+FROM catalog.products AS p
+WHERE p.is_active = TRUE
+&quot;&quot;&quot;
+
+TAGS_SQL = &quot;&quot;&quot;
+SELECT t.sku, LOWER(TRIM(t.tag)) AS tag
+FROM catalog.validated_tags AS t
+WHERE t.tag IS NOT NULL
+&quot;&quot;&quot;
+
+OUTPUT_TABLE = &quot;item_vectors&quot;
+OUTPUT_SCHEMA = &quot;features&quot;
+
+_HTML_TAG_RE = re.compile(r&quot;&lt;[^&gt;]+&gt;&quot;)
+_URL_RE = re.compile(r&quot;https?://\S+|www\.\S+&quot;)
+_SIZE_RE = re.compile(r&quot;(\d+(?:\.\d+)?)\s*(?:\&quot;|in\b|inch(?:es)?\b)&quot;)
+_CM_RE = re.compile(r&quot;(\d+(?:\.\d+)?)\s*cm\b&quot;)
+_NON_WORD_RE = re.compile(r&quot;[^a-z0-9\s]+&quot;)
+_WS_RE = re.compile(r&quot;\s+&quot;)
+
+# Boilerplate copy that appears on most product pages and carries no signal.
+_BOILERPLATE = (&quot;free shipping on orders over&quot;, &quot;see our return policy&quot;, &quot;colors may vary slightly&quot;)
+
+
+@dataclass(frozen=True)
+class VectorConfig:
+    &quot;&quot;&quot;All knobs that influence the produced vectors.
+
+    Anything in here participates in the model version hash, so changing a
+    weight or vocabulary threshold yields a new ``model_version``.
+    &quot;&quot;&quot;
+
+    n_components: int = 128
+    min_df: int = 3
+    max_df: float = 0.6
+    max_features: int = 200_000
+    ngram_range: tuple[int, int] = (1, 2)
+    title_repeat: int = 2
+    min_tag_count: int = 5
+    text_weight: float = 1.0
+    tag_weight: float = 0.6
+    category_weight: float = 0.4
+    category_depth: int = 2
+    svd_iter: int = 7
+    random_state: int = 20261003
+    version_prefix: str = &quot;lsa&quot;
+
+
+@dataclass
+class QualityThresholds:
+    &quot;&quot;&quot;Acceptance criteria evaluated by ``validate`` and at the end of a run.&quot;&quot;&quot;
+
+    min_coverage: float = 0.98
+    max_norm_deviation: float = 1e-3
+    duplicate_cosine: float = 0.999
+    max_duplicate_share: float = 0.02
+    nn_sample_size: int = 500
+    nn_k: int = 5
+    min_nn_category_agreement: float = 0.6
+
+
+@dataclass
+class QualityReport:
+    n_products: int
+    n_vectors: int
+    coverage: float
+    norm_mean: float
+    norm_std: float
+    norm_min: float
+    norm_max: float
+    duplicate_pairs: int
+    duplicate_share: float
+    nn_category_agreement: float
+    failures: list[str] = field(default_factory=list)
+
+    @property
+    def passed(self) -&gt; bool:
+        return not self.failures
+
+
+def get_engine(dsn: str) -&gt; Engine:
+    return create_engine(dsn, pool_pre_ping=True, future=True)
+
+
+def load_products(engine: Engine) -&gt; pd.DataFrame:
+    df = pd.read_sql(PRODUCTS_SQL, engine)
+    before = len(df)
+    df = df.dropna(subset=[&quot;sku&quot;]).drop_duplicates(subset=[&quot;sku&quot;], keep=&quot;last&quot;)
+    if len(df) != before:
+        log.warning(&quot;Dropped %d product rows with null or duplicate SKU&quot;, before - len(df))
+    df[&quot;sku&quot;] = df[&quot;sku&quot;].astype(str)
+    log.info(&quot;Loaded %d active products&quot;, len(df))
+    return df.reset_index(drop=True)
+
+
+def load_tags(engine: Engine) -&gt; pd.DataFrame:
+    df = pd.read_sql(TAGS_SQL, engine)
+    df[&quot;sku&quot;] = df[&quot;sku&quot;].astype(str)
+    df = df[df[&quot;tag&quot;].str.len() &gt; 0].drop_duplicates()
+    log.info(&quot;Loaded %d validated tag assignments across %d SKUs&quot;, len(df), df[&quot;sku&quot;].nunique())
+    return df
+
+
+def write_vectors(engine: Engine, skus: Sequence[str], vectors: np.ndarray, model_version: str) -&gt; int:
+    &quot;&quot;&quot;Replace this model version&#x27;s rows in features.item_vectors (idempotent re-runs).&quot;&quot;&quot;
+    out = pd.DataFrame({
+        &quot;sku&quot;: list(skus),
+        &quot;vector&quot;: [v.astype(np.float32).tolist() for v in vectors],
+        &quot;model_version&quot;: model_version,
+        &quot;built_at&quot;: datetime.now(timezone.utc),
+    })
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            &quot;DELETE FROM features.item_vectors WHERE model_version = %(mv)s&quot;, {&quot;mv&quot;: model_version}
+        )
+        out.to_sql(OUTPUT_TABLE, conn, schema=OUTPUT_SCHEMA, if_exists=&quot;append&quot;,
+                   index=False, chunksize=5_000, method=&quot;multi&quot;)
+    log.info(&quot;Wrote %d vectors to features.item_vectors (%s)&quot;, len(out), model_version)
+    return len(out)
+
+
+def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str], np.ndarray, str]:</pre>
+      <div class="more-lines">… 345 more lines</div>
     </div>
 
-    <div class="gh main1" id="main-card">
-      <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">promo_uplift/ <span>· who should get a promo code</span></span></div>
-      <div class="file">uplift.py <span class="owner">owner: <b style="color:var(--gh-text)">Grace Liu</b></span></div>
-      <div class="code">
-        <div class="ln"><span class="n">60</span><span class="g"></span><span><span class="k">class</span> <span class="f">TLearner</span>:  <span class="c"># one model per arm</span></span></div>
-        <div class="ln hl"><span class="n">65</span><span class="g"></span><span>    self.model_t = <span class="nb">HistGradientBoostingClassifier</span>(**params)</span></div>
-        <div class="ln hl"><span class="n">66</span><span class="g"></span><span>    self.model_c = <span class="nb">HistGradientBoostingClassifier</span>(**params)</span></div>
-        <div class="gap">⋯</div>
-        <div class="ln"><span class="n">77</span><span class="g"></span><span><span class="k">def</span> <span class="f">predict</span>(self, X):</span></div>
-        <div class="ln"><span class="n">79</span><span class="g"></span><span>    p_t = self.model_t.predict_proba(X)[:, <span class="nb">1</span>]</span></div>
-        <div class="ln"><span class="n">80</span><span class="g"></span><span>    p_c = self.model_c.predict_proba(X)[:, <span class="nb">1</span>]</span></div>
-        <div class="ln hl" id="main-fn"><span class="n">81</span><span class="g"></span><span>    <span class="k">return</span> pd.DataFrame({…, <span class="str">"uplift"</span>: p_t - p_c})</span></div>
-      </div>
+    <div class="flowarrow a1" aria-hidden="true"><span>Qwen reads</span>→</div>
+
+    <div class="topiccard pr-topic">
+      <div class="tc-label">Topic extracted from the PR</div>
+      <div class="tc-name">item vector generation</div>
+      <p>Dense, L2-normalized vectors for every SKU from TF-IDF over titles and descriptions, IDF-weighted merchandising tags and category one-hots, reduced with TruncatedSVD. Used for similarity search and recommendations.</p>
+      <div class="kchips"><span class="kchip shared">dense vector generation</span><span class="kchip">tf idf text features</span><span class="kchip shared">idf weighted multi hot tags</span><span class="kchip shared">merchandising tags</span><span class="kchip shared">product title description</span><span class="kchip">truncated svd projection</span><span class="kchip shared">sku level vectors</span><span class="kchip">l2 normalized vectors</span></div>
+      <div class="tc-io">reads <code>catalog.products</code> <code>catalog.validated_tags</code></div>
     </div>
 
-    <div class="gh oc">
-      <div class="bar"><span class="avatar">oc</span><span><b>slopulant-watcher</b> <span class="bot">bot</span> <span class="sub">commented on #28</span></span></div>
-      <div class="body">
-        <div>Looks like Grace Liu's <code>promo_uplift</code>. Both pick the customers most likely to convert <i>because of</i> a promo, from the same inputs (customer embeddings, promo history), and produce comparable per-customer uplift scores. The only difference is the modeling approach: S-learner vs T-learner.</div>
-        <div class="verdicts">
-          <span class="v dup">🟥 <b>promo_uplift</b> · owner Grace Liu · classifier: duplicate (0.95) · topic match 0.68</span>
-        </div>
-      </div>
+    <div class="match" aria-hidden="true">
+      <div class="m-score">0.68</div>
+      <div class="m-sub">description<br>similarity</div>
+      <div class="m-line"></div>
+      <div class="m-rank">#1 of 41<br>folders</div>
     </div>
 
-    <svg class="links" viewBox="0 0 1600 900" aria-hidden="true">
-      <defs>
-        <marker id="am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff3ec8"/></marker>
-      </defs>
-      <path id="link-dup" d="" fill="none" stroke="#ff3ec8" stroke-width="3" marker-end="url(#am)"/>
-      <g id="lab-dup"><rect rx="8" fill="#1a0a16" stroke="#ff3ec8"/><text class="tag" fill="#ff8be0">potential duplicate</text><text class="tag-sub" fill="#d9a9cc">same model: gradient-boosted uplift, S- vs T-learner</text></g>
-    </svg>
+    <div class="topiccard ex-topic">
+      <div class="tc-label">Existing topic on main · <b>product_embeddings/</b> · owner Marcus Okafor</div>
+      <div class="tc-name">product embedding generation</div>
+      <p>Fixed-size dense vectors for each SKU for similarity search: tokenizes title, description and validated tags and hashes them into 128 dimensions. 44 lines.</p>
+      <div class="kchips"><span class="kchip shared">dense embedding generation</span><span class="kchip shared">sku vector representation</span><span class="kchip shared">title description tokenization</span><span class="kchip shared">validated tag incorporation</span><span class="kchip">hash based embedding</span><span class="kchip">cosine normalization</span><span class="kchip">fixed length vector output</span><span class="kchip">product similarity enablement</span></div>
+      <div class="tc-io">reads <code>catalog.products</code> <code>catalog.validated_tags</code></div>
+    </div>
+
+    <div class="verdict">
+      <span class="v dup">🟧 classifier: <b>partial duplicate</b> · 0.80</span>
+      <span class="v-why">"Both systems generate SKU-level dense vectors for similarity and recommendation. The new one uses explicit feature engineering (TF-IDF, tags, categories + SVD), the existing one hashing."</span>
+    </div>
+    <div class="sem-note">No lines of code in common. The match comes from what the code does.</div>
   </section>
 
-  <!-- 4 · FUTURE WORK -->
-  <section class="slide s4" aria-label="Future work">
+  <!-- CHANNELS -->
+  <section class="slide channels" aria-label="Where people work">
     <div class="head">
-      <div class="eyebrow">Future work</div>
-      <h2>From a flag on the PR <em class="accent">to a teammate in the thread</em></h2>
+      <div class="eyebrow">Delivery</div>
+      <h2>We meet people <em class="accent">where they already work</em></h2>
     </div>
+    <div class="apps">
 
-    <div class="col left">
-      <div class="col-title"><span class="step">1</span> Talk it through on the PR</div>
-      <div class="thread">
-        <div class="msg">
-          <span class="avatar">oc</span>
-          <div class="bubble">
-            <div class="who"><b>slopulant-watcher</b> <span class="bot">bot</span></div>
-            <div>Looks like Grace Liu's <code>promo_uplift</code> (duplicate · 0.95).</div>
-            <div class="reacts"><span>👀 1</span></div>
-          </div>
-        </div>
-        <div class="msg">
-          <span class="avatar human" style="--h: #3fb9a5">CW</span>
-          <div class="bubble">
-            <div class="who"><b>Chen Wei</b></div>
-            <div><span class="mention">@slopulant-watcher</span> we need targeting under a fixed budget per promo. Does <code>promo_uplift</code> do that?</div>
-          </div>
-        </div>
-        <div class="msg">
-          <span class="avatar">oc</span>
-          <div class="bubble agent">
-            <div class="who"><b>slopulant-watcher</b> <span class="bot">bot</span></div>
-            <div>Mostly. It already scores every customer's uplift, and <code>pick_cutoff()</code> in <code>evaluate.py</code> picks who to target from margin and cost per code. A per-promo budget cap would be a small addition there. Want me to loop Grace in?</div>
-            <div class="reacts"><span class="on">❤️ 2</span><span>👍 1</span></div>
-          </div>
-        </div>
-        <div class="msg">
-          <span class="avatar human" style="--h: #c77dff">GL</span>
-          <div class="bubble">
-            <div class="who"><b>Grace Liu</b></div>
-            <div>Yes please. Happy to pair on a <code>budget_cap</code> option 🙌</div>
-            <div class="reacts"><span class="on">❤️ 1</span></div>
+      <div class="app">
+        <div class="app-name"><img src="icons/github.svg" class="mono" alt="">GitHub</div>
+        <div class="mock gh-mock">
+          <div class="gm-bar"><span class="gm-open">Open</span> <b>Add item vectors for search &amp; recs</b></div>
+          <div class="gm-comment">
+            <div class="gm-who"><span class="dotav oc">oc</span><b>slopulant-watcher</b> <span class="gm-bot">bot</span> commented</div>
+            <p>[oc] This looks like Marcus Okafor's <code>product_embeddings</code>: both turn product titles, descriptions and tags into one vector per SKU for search and recs.</p>
+            <div class="gm-table"><span>🟥 product_embeddings</span><span>partial duplicate · 0.80</span></div>
+            <div class="rx"><span class="on">❤️ 2</span><span>👍 1</span></div>
           </div>
         </div>
       </div>
+
+      <div class="app">
+        <div class="app-name"><img src="icons/gmail.svg" alt="">Gmail</div>
+        <div class="mock gmail">
+          <div class="gl-subject">Your PR may duplicate <b>product_embeddings</b></div>
+          <div class="gl-from"><span class="dotav oc">oc</span><div><b>Slopulant watcher</b><br><span>to Priyanka Nair, cc Marcus Okafor</span></div></div>
+          <p>Hi Priyanka, your new <b>catalog_vectors</b> builds a vector per product from titles, descriptions and tags. Marcus Okafor's team already publishes one for search and recs.</p>
+          <p>Worth a quick chat before merging?</p>
+          <div class="gl-btn">Open PR</div>
+        </div>
+      </div>
+
+      <div class="app">
+        <div class="app-name"><img src="icons/slack.svg" alt="">Slack</div>
+        <div class="mock slack">
+          <div class="sl-chan"># ml-platform</div>
+          <div class="sl-msg">
+            <span class="dotav oc sq">oc</span>
+            <div><b>slopulant-watcher</b> <span class="sl-app">APP</span> <span class="sl-time">2:14 PM</span>
+              <p><span class="sl-at">@Priyanka</span> your <code>catalog_vectors</code> PR looks like <code>product_embeddings</code> (partial duplicate, 0.80). <span class="sl-at">@Marcus</span> owns it.</p>
+              <div class="rx light"><span class="on">❤️ 1</span><span>👀 2</span></div>
+            </div>
+          </div>
+          <div class="sl-msg">
+            <span class="dotav sq" style="background:#e2a03f">MO</span>
+            <div><b>Marcus Okafor</b> <span class="sl-time">2:16 PM</span><p>Happy to add a TF-IDF block to ours, want to pair?</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app">
+        <div class="app-name"><img src="icons/discord.svg" alt="">Discord</div>
+        <div class="mock discord">
+          <div class="dc-chan"># pr-alerts</div>
+          <div class="dc-msg">
+            <span class="dotav oc">oc</span>
+            <div><b class="dc-bot">slopulant-watcher</b> <span class="dc-tag">APP</span> <span class="dc-time">Today at 2:14 PM</span>
+              <div class="dc-embed">
+                <b>Possible duplicate</b>
+                <p>catalog_vectors → product_embeddings<br>owner: Marcus Okafor</p>
+                <span>partial duplicate · 0.80</span>
+              </div>
+              <div class="rx dark"><span class="on">👍 3</span><span>❤️ 1</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FEEDBACK -->
+  <section class="slide feedback" aria-label="Getting better over time">
+    <div class="head">
+      <div class="eyebrow">Learning</div>
+      <h2>How we're getting <em class="accent">better over time</em></h2>
     </div>
 
-    <div class="col right">
-      <div class="col-title"><span class="step">2</span> Learn from reactions</div>
-      <div class="flow">
-        <div class="react-row"><span class="pill up">👍 on a catch</span><span class="pill down">👎 on a false alarm</span></div>
-        <div class="flow-arrow">↓ logged with the PR, topics and scores</div>
-        <div class="dial">
-          <div class="dial-name">Candidate generation <span>similarity floor</span></div>
+    <div class="fb-left">
+      <div class="fb-title">We record every reaction</div>
+      <div class="fb-stream">
+        <div class="fb-row"><img src="icons/github.svg" class="mono" alt=""><span class="emo">❤️</span><span class="pair">catalog_vectors ↔ product_embeddings</span><span class="who">Priyanka</span></div>
+        <div class="fb-row"><img src="icons/slack.svg" alt=""><span class="emo">👍</span><span class="pair">growth_toolkit ↔ promo_uplift</span><span class="who">Grace</span></div>
+        <div class="fb-row"><img src="icons/gmail.svg" alt=""><span class="emo">👎</span><span class="pair">invoice_matching ↔ competitor_price_matching</span><span class="who">Chen</span></div>
+        <div class="fb-row"><img src="icons/discord.svg" alt=""><span class="emo">👍</span><span class="pair">seo_titles ↔ title_rewriter</span><span class="who">Sofia</span></div>
+        <div class="fb-row"><img src="icons/slack.svg" alt=""><span class="emo">👎</span><span class="pair">promo_calendar ↔ markdown_optimizer</span><span class="who">Lena</span></div>
+      </div>
+      <div class="fb-note">Each one is stored with the PR, both topics, the scores and the verdict.</div>
+    </div>
+
+    <div class="fb-arrow" aria-hidden="true">→</div>
+
+    <div class="fb-box">
+      <div class="fb-title">How we can use the feedback</div>
+      <div class="use">
+        <div class="use-h"><span class="step">1</span> Adjust the decision boundary</div>
+        <div class="dial compact">
+          <div class="dial-name">Candidate floor <span>similarity</span></div>
           <div class="track"><span class="ghost" style="left: 40%"></span><span class="mark" style="left: 30%"></span><span class="move" style="left: 30%; width: 10%"></span></div>
           <div class="scale"><span>0.30</span><span>0.38 → 0.36</span><span>0.50</span></div>
-          <div class="why">👍 on a match that barely made the cut → lower the floor, catch more</div>
         </div>
-        <div class="dial">
-          <div class="dial-name">CLM classifier <span>min confidence to alert</span></div>
+        <div class="dial compact">
+          <div class="dial-name">Classifier <span>min confidence to alert</span></div>
           <div class="track"><span class="ghost" style="left: 40%"></span><span class="mark" style="left: 56%"></span><span class="move" style="left: 40%; width: 16%"></span></div>
           <div class="scale"><span>0.50</span><span>0.70 → 0.78</span><span>1.00</span></div>
-          <div class="why">👎 on a flagged "duplicate" → raise the bar, keep it as a negative example</div>
         </div>
-        <div class="foot">Illustrative values. Thresholds are tuned per relation type, on reactions from real PRs.</div>
       </div>
+      <div class="use">
+        <div class="use-h"><span class="step">2</span> Use them as few-shot examples</div>
+        <div class="shots">
+          <div class="shot yes"><b>👍 duplicate</b> catalog_vectors ↔ product_embeddings: same vector per SKU, different technique</div>
+          <div class="shot no"><b>👎 not a duplicate</b> invoice_matching ↔ competitor_price_matching: "matching", different job</div>
+        </div>
+        <div class="fb-note">The classifier sees the closest past cases next to each new one.</div>
+      </div>
+      <div class="fb-note">Slider values are illustrative.</div>
     </div>
   </section>
 
@@ -508,7 +846,7 @@
 
 <button class="deck-nav navbtn prev" id="prev" aria-label="Previous slide">‹</button>
 <button class="deck-nav navbtn next" id="next" aria-label="Next slide">›</button>
-<div class="deck-nav counter" id="count">1 / 5</div>
+<div class="deck-nav counter" id="count">1 / 6</div>
 
 <script>
   const deck = document.getElementById("deck");

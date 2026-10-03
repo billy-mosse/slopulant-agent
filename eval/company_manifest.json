@@ -1311,6 +1311,34 @@
           "spec": "A new folder with TWO unrelated tools from the growth team. (1) promo_targeting.py: uplift targeting for promos with an S-learner (single gradient-boosting model with a treatment flag feature) on customer vectors, ranks customers by predicted incremental conversion, Qini evaluation. (2) send_windows.py: best email send window per customer from historical opens, smoothed hour-of-week open rates with a global prior, fallback to cohort default. Same jobs as the existing promo uplift model and email send-time model respectively."
         }
       }
+    },
+    "priyanka/item-vectors": {
+      "author": "Priyanka Nair",
+      "title": "Add item vectors for search & recs",
+      "branch_only": true,
+      "folders": {
+        "catalog_vectors": {
+          "duplicate": [
+            "product_embeddings"
+          ],
+          "related": [
+            "i2i_recs",
+            "email_product_recs",
+            "two_tower_search"
+          ],
+          "reads": [
+            "catalog.products",
+            "catalog.validated_tags"
+          ],
+          "writes": [
+            "features.item_vectors"
+          ],
+          "files": [
+            "build_item_vectors.py"
+          ],
+          "spec": "520-line production module: TF-IDF over titles/descriptions + IDF-weighted tag multi-hot + category one-hot, TruncatedSVD to 128 dims, L2-normalized SKU vectors. Same job as product_embeddings (hashed bag-of-words vectors) with no code in common: the semantic-duplicate example in the pitch deck."
+        }
+      }
     }
   }
 }
