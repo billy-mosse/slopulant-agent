@@ -134,3 +134,8 @@ OPENCLAW_TIMEOUT = int(os.environ.get("OPENCLAW_TIMEOUT", "180"))
 
 # A queue item stuck in "running" longer than this (a crashed run) is retried.
 STALE_RUN_SECONDS = int(os.environ.get("STALE_RUN_SECONDS", "900"))
+
+# Re-extract topics for the folders a PR touches on every run, even if that folder
+# version was seen before (main's folders always come from the cache).
+# REEXTRACT_PR_TOPICS=0 reuses cached PR topics too.
+REEXTRACT_PR_TOPICS = os.environ.get("REEXTRACT_PR_TOPICS", "1") != "0"

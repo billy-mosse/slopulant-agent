@@ -88,10 +88,21 @@ def score_pr(conn, base_sha, pr_number, head_sha):
     touched = [f for f in gitrepo.touched_folders(base_sha, head_sha) if f in head_folders]  # skip deleted folders
 
     t0 = time.time()
-    cached = [f for f in touched if db.get_folder(conn, head_folders[f]) is not None]
-    stage(conn, pr_number, "topics", "start", f"extracting topics for {', '.join(touched) or 'no folders'}",
-          folders=touched, cached=cached)
-    entries = {f: topics.folder_for(conn, head_sha, f, head_folders[f]) for f in touched}
+    if config.REEXTRACT_PR_TOPICS:
+        # The PR's own folders always get a fresh extraction; main's folders stay cached.
+        # The result is stored under the folder's tree sha, so a merge still reuses it.
+        cached = []
+        stage(conn, pr_number, "topics", "start", f"extracting topics for {', '.join(touched) or 'no folders'}",
+              folders=touched, cached=cached)
+        entries = {}
+        for f in touched:
+            db.put_folder(conn, head_folders[f], topics.build_folder(f, gitrepo.folder_files(head_sha, f)))
+            entries[f] = db.get_folder(conn, head_folders[f])
+    else:
+        cached = [f for f in touched if db.get_folder(conn, head_folders[f]) is not None]
+        stage(conn, pr_number, "topics", "start", f"extracting topics for {', '.join(touched) or 'no folders'}",
+              folders=touched, cached=cached)
+        entries = {f: topics.folder_for(conn, head_sha, f, head_folders[f]) for f in touched}
     stage(conn, pr_number, "topics", "end", "; ".join(f"{f}: {len(e['topics'])} topic(s)" for f, e in entries.items()),
           seconds=round(time.time() - t0, 1), cached=cached,
           topics={f: [t["name"] for t in e["topics"]] for f, e in entries.items()})
