@@ -1,0 +1,267 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Duplicate Work Detector</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#f5f5f2;
+    --surface:#ffffff;
+    --surface-2:#eeefea;
+    --ink:#14181b;
+    --ink-2:#4e575d;
+    --ink-3:#79838a;
+    --line:#d9dad4;
+    --line-2:#c3c6be;
+    --sig:#007c99;
+    --sig-soft:#e3eff2;
+    --learn:#9a5b16;
+    --learn-soft:#f6ecdf;
+    --store:#f0f1ec;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#111416;
+      --surface:#1a1e21;
+      --surface-2:#22272a;
+      --ink:#e7eae8;
+      --ink-2:#98a2a7;
+      --ink-3:#77838a;
+      --line:#2c3237;
+      --line-2:#3b434a;
+      --sig:#2ea3b2;
+      --sig-soft:#12353b;
+      --learn:#bd8139;
+      --learn-soft:#33281a;
+      --store:#20262a;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#111416;
+    --surface:#1a1e21;
+    --surface-2:#22272a;
+    --ink:#e7eae8;
+    --ink-2:#98a2a7;
+    --ink-3:#77838a;
+    --line:#2c3237;
+    --line-2:#3b434a;
+    --sig:#2ea3b2;
+    --sig-soft:#12353b;
+    --learn:#bd8139;
+    --learn-soft:#33281a;
+    --store:#20262a;
+    color-scheme:dark;
+  }
+
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:"Source Sans 3",ui-sans-serif,system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    min-height:100%;
+    padding-block:32px;
+  }
+  figure{
+    margin:0;
+    background:var(--surface);
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+  .scroller{overflow-x:auto;padding:28px 24px 10px}
+  .scroller svg{display:block;margin:0 auto;height:auto}
+  #flow{min-width:1180px;max-width:1640px;width:100%}
+  .key{display:flex;flex-wrap:wrap;gap:6px 22px;padding:0 24px 24px;max-width:1240px;margin:0 auto}
+  .key span{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);font-family:"IBM Plex Mono",monospace}
+  .key i{display:block;width:26px;height:0;border-top:2px solid var(--ink-3);flex:none}
+  .key svg{flex:none}
+  .key i.sig{border-color:var(--sig)}
+  .key i.learn{border-color:var(--learn)}
+  .key i.off{border-top-style:dashed}
+  .key i.box{height:14px;border:1px dashed var(--line-2);border-radius:2px}
+
+  /* svg type + node silhouettes */
+  svg text{font-family:"Source Sans 3",system-ui,sans-serif;fill:var(--ink)}
+  .n-t{font-family:Archivo,system-ui,sans-serif;font-size:16px;font-weight:600;letter-spacing:-.01em}
+  .n-s{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--ink-2)}
+  .e-l{font-family:"IBM Plex Mono",monospace;font-size:11.5px;fill:var(--ink-2)}
+  .e-l.on{fill:var(--learn)}
+  .zone{font-family:"IBM Plex Mono",monospace;font-size:12px;fill:var(--ink-3);letter-spacing:.06em}
+  .nd{fill:var(--surface-2);stroke:var(--line-2);stroke-width:1.25}
+  .nd-m{fill:var(--sig-soft);stroke:var(--sig);stroke-width:1.25}
+  .nd-s{fill:var(--store);stroke:var(--line-2);stroke-width:1.25}
+  .nd-s.hot{stroke:var(--learn)}
+  .lid{fill:none;stroke:var(--line-2);stroke-width:1.25}
+  .lid.hot{stroke:var(--learn)}
+  .nd-x{fill:none;stroke:var(--line-2);stroke-width:1.25;stroke-dasharray:5 4}
+  .fence{fill:none;stroke:var(--line-2);stroke-width:1.25;stroke-dasharray:3 5}
+  .fl{stroke:var(--sig);stroke-width:2;fill:none}
+  .lr{stroke:var(--learn);stroke-width:2;fill:none}
+  .of{stroke:var(--ink-3);stroke-width:1.6;fill:none;stroke-dasharray:6 5}
+  .git path{fill:none;stroke:var(--ink-2);stroke-width:1.7;stroke-linecap:round}
+  .git circle{fill:var(--surface);stroke:var(--ink-2);stroke-width:1.7}
+  .chg path,.chg rect{fill:none;stroke:var(--ink-2);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+  .chg circle{fill:var(--ink-2);stroke:none}
+  .ch-l{font-family:"IBM Plex Mono",monospace;font-size:8px;fill:var(--ink-3);letter-spacing:.04em}
+
+  @media (max-width:560px){
+    .scroller{padding:20px 16px 10px}
+    .key{padding-inline:16px}
+  }
+</style>
+
+<figure>
+  <div class="scroller">
+      <svg id="flow" viewBox="0 0 1640 680" role="img" aria-label="Dataflow for the duplicate work detector. Offline and nightly: a sweep of main runs topic extraction, MiniLM-L6-v2 encodes each topic, and both the raw text and the vector land in the topics table. At PR time: openclaw picks up the PR, qwen3-coder-next decomposes the diff into topics, the same MiniLM encodes them, a candidate generator does an ANN lookup against the topics table for the nearest twenty, and the CLM classifier decides which pairs are real duplicates and writes a verdict with its rationale to the decisions table. openclaw polls that table for unnotified rows, DMs the PR author over Slack, Discord or email, and records the author's thumbs-up or thumbs-down in the reactions table, which feeds back into the classifier's exemplars and threshold. Model-backed stages are drawn as hexagons, tables as cylinders, and anything outside the GB10 with a dashed outline.">
+        <defs>
+          <marker id="aS" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--sig)"/></marker>
+          <marker id="aL" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--learn)"/></marker>
+          <marker id="aO" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--ink-3)"/></marker>
+        </defs>
+
+        <rect class="fence" x="270" y="2" width="1356" height="544" rx="8"/>
+        <text class="zone" x="288" y="534">GB10 · 128 GB unified memory</text>
+
+        <!-- ── offline lane: the topics table is built nightly ── -->
+        <path class="nd-m" d="M594 16 L762 16 L776 49 L762 82 L594 82 L580 49 Z"/>
+        <text class="n-t" x="598" y="42">topic extraction</text>
+        <text class="n-s" x="598" y="62">nightly · coder-next</text>
+
+        <path class="nd-m" d="M864 16 L1032 16 L1046 49 L1032 82 L864 82 L850 49 Z"/>
+        <text class="n-t" x="868" y="42">MiniLM-L6-v2</text>
+        <text class="n-s" x="868" y="62">encodes each topic</text>
+
+        <path class="nd-s" d="M1120 17 A98 10 0 0 1 1316 17 L1316 81 A98 10 0 0 1 1120 81 Z"/>
+        <path class="lid" d="M1120 17 A98 10 0 0 0 1316 17"/>
+        <text class="n-t" x="1134" y="50">topics</text>
+        <text class="n-s" x="1134" y="72">text + vec(384)</text>
+
+        <path class="of" d="M130 150 V49 H564" marker-end="url(#aO)"/>
+        <text class="e-l" x="347" y="40" text-anchor="middle">nightly sweep of main</text>
+        <path class="of" d="M776 49 H842" marker-end="url(#aO)"/>
+        <text class="e-l" x="809" y="40" text-anchor="middle">raw text</text>
+        <path class="of" d="M1046 49 H1112" marker-end="url(#aO)"/>
+        <text class="e-l" x="1079" y="40" text-anchor="middle">text + vec</text>
+
+        <!-- ── PR-time path ── -->
+        <rect class="nd-x" x="40" y="150" width="196" height="96" rx="5"/>
+        <g class="git" aria-hidden="true">
+          <path d="M200 169 V183"/>
+          <path d="M200 179 C 208 179 214 179 214 175.5"/>
+          <circle cx="200" cy="166" r="3.4"/>
+          <circle cx="200" cy="186" r="3.4"/>
+          <circle cx="214" cy="172" r="3.4"/>
+        </g>
+        <text class="n-t" x="54" y="178">monorepo</text>
+        <text class="n-s" x="54" y="202">github · 11 teams</text>
+        <text class="n-s" x="54" y="220">PR #4812 opened</text>
+
+        <rect class="nd" x="310" y="150" width="196" height="96" rx="5"/>
+        <text class="n-t" x="324" y="178">🦞 openclaw</text>
+        <text class="n-s" x="324" y="202">cron / event router</text>
+
+        <path class="nd-m" d="M594 150 L762 150 L776 198 L762 246 L594 246 L580 198 Z"/>
+        <text class="n-t" x="598" y="178">topic extraction</text>
+        <text class="n-s" x="598" y="202">qwen3-coder-next-80b-3a</text>
+        <text class="n-s" x="598" y="220">q6_k; ollama</text>
+
+        <path class="nd-m" d="M864 150 L1032 150 L1046 198 L1032 246 L864 246 L850 198 Z"/>
+        <text class="n-t" x="868" y="178">MiniLM-L6-v2</text>
+        <text class="n-s" x="868" y="202">same model as index</text>
+        <text class="n-s" x="868" y="220">topic → 384-d</text>
+
+        <rect class="nd" x="1120" y="150" width="196" height="96" rx="5"/>
+        <text class="n-t" x="1134" y="178">candidate generator</text>
+        <text class="n-s" x="1134" y="202">ANN search, k=20</text>
+        <text class="n-s" x="1134" y="220">high recall, low prec.</text>
+
+        <path class="nd-m" d="M1404 150 L1572 150 L1586 198 L1572 246 L1404 246 L1390 198 Z"/>
+        <text class="n-t" x="1408" y="178">CLM classifier</text>
+        <text class="n-s" x="1408" y="202">ollama · qwen3-8b</text>
+        <text class="n-s" x="1408" y="220">dupe? + rationale</text>
+
+        <path class="fl" d="M236 198 H302" marker-end="url(#aS)"/>
+        <text class="e-l" x="269" y="186" text-anchor="middle">PR open</text>
+        <path class="fl" d="M506 198 H572" marker-end="url(#aS)"/>
+        <text class="e-l" x="539" y="176" text-anchor="middle">diff +</text>
+        <text class="e-l" x="539" y="190" text-anchor="middle">paths</text>
+        <path class="fl" d="M776 198 H842" marker-end="url(#aS)"/>
+        <text class="e-l" x="809" y="176" text-anchor="middle">topic</text>
+        <text class="e-l" x="809" y="190" text-anchor="middle">strings</text>
+        <path class="fl" d="M1046 198 H1112" marker-end="url(#aS)"/>
+        <text class="e-l" x="1079" y="176" text-anchor="middle">384-d</text>
+        <text class="e-l" x="1079" y="190" text-anchor="middle">vectors</text>
+        <path class="fl" d="M1316 198 H1382" marker-end="url(#aS)"/>
+        <text class="e-l" x="1349" y="176" text-anchor="middle">≤20 pairs</text>
+        <text class="e-l" x="1349" y="190" text-anchor="middle">per topic</text>
+
+        <path class="fl" d="M1218 91 V142" marker-end="url(#aS)"/>
+        <text class="e-l" x="1232" y="118">ANN index · nearest 20</text>
+
+        <path class="fl" d="M1586 182 H1606 V458 H1590" marker-end="url(#aS)"/>
+        <text class="e-l" x="1598" y="300" text-anchor="end">writes verdict,</text>
+        <text class="e-l" x="1598" y="316" text-anchor="end">confidence, rationale</text>
+
+        <!-- ── decision side ── -->
+        <path class="nd-s" d="M1390 426 A98 10 0 0 1 1586 426 L1586 490 A98 10 0 0 1 1390 490 Z"/>
+        <path class="lid" d="M1390 426 A98 10 0 0 0 1586 426"/>
+        <text class="n-t" x="1404" y="459">decisions</text>
+        <text class="n-s" x="1404" y="481">one row per pair</text>
+
+        <rect class="nd" x="850" y="410" width="196" height="96" rx="5"/>
+        <text class="n-t" x="864" y="438">🦞 openclaw · comms</text>
+        <text class="n-s" x="864" y="462">learns the org's words</text>
+        <text class="n-s" x="864" y="480">one DM per author</text>
+
+        <path class="nd-s hot" d="M580 426 A98 10 0 0 1 776 426 L776 490 A98 10 0 0 1 580 490 Z"/>
+        <path class="lid hot" d="M580 426 A98 10 0 0 0 776 426"/>
+        <text class="n-t" x="594" y="459">reactions</text>
+        <text class="n-s" x="594" y="481">human labels</text>
+
+        <path class="fl" d="M1390 458 H1054" marker-end="url(#aS)"/>
+        <text class="e-l" x="1222" y="478" text-anchor="middle">openclaw polls</text>
+        <text class="e-l" x="1222" y="492" text-anchor="middle">unnotified rows</text>
+        <path class="fl" d="M850 458 H784" marker-end="url(#aS)"/>
+        <text class="e-l" x="817" y="478" text-anchor="middle">reaction</text>
+        <text class="e-l" x="817" y="492" text-anchor="middle">+ pair id</text>
+
+        <rect class="nd-x" x="850" y="572" width="196" height="76" rx="5"/>
+        <text class="n-t" x="864" y="598">PR author</text>
+        <g class="chg" aria-hidden="true">
+          <path d="M868 616 L866.5 627"/><path d="M872 616 L870.5 627"/>
+          <path d="M864.8 620 L874 620"/><path d="M864.4 623.5 L873.6 623.5"/>
+          <rect x="910" y="616" width="11" height="8" rx="2.5"/>
+          <path d="M913.5 624 L912.5 627.5 L916 624"/>
+          <circle cx="914" cy="620" r="0.9"/><circle cx="917.5" cy="620" r="0.9"/>
+          <rect x="966" y="617" width="11" height="8" rx="1.2"/>
+          <path d="M966 617.6 L971.5 622 L977 617.6"/>
+        </g>
+        <text class="ch-l" x="878" y="625">slack</text>
+        <text class="ch-l" x="924" y="625">discord</text>
+        <text class="ch-l" x="980" y="625">gmail</text>
+
+        <path class="fl" d="M916 568 V510" marker-end="url(#aS)"/>
+        <text class="e-l" x="904" y="542" text-anchor="end">👍 / 👎</text>
+        <path class="fl" d="M980 506 V568" marker-end="url(#aS)"/>
+        <text class="e-l" x="992" y="542">the DM</text>
+
+        <path class="lr" d="M678 416 V360 H1420 V250" marker-end="url(#aL)"/>
+        <text class="e-l on" x="1049" y="350" text-anchor="middle">few-shot exemplars · calibrated threshold</text>
+      </svg>
+  </div>
+  <div class="key">
+      <span><i class="sig"></i>PR-time path · seconds</span>
+      <span><i class="learn"></i>learning loop · batched</span>
+      <span><i class="off"></i>offline · nightly</span>
+      <span><svg width="24" height="14" aria-hidden="true" viewBox="0 0 24 14"><path class="nd-m" d="M4 1 L20 1 L23 7 L20 13 L4 13 L1 7 Z"/></svg>model on ollama</span>
+      <span><svg width="20" height="15" aria-hidden="true" viewBox="0 0 20 15"><path class="nd-s" d="M1 4 A9 3 0 0 1 19 4 L19 11 A9 3 0 0 1 1 11 Z"/><path class="lid" d="M1 4 A9 3 0 0 0 19 4"/></svg>table</span>
+      <span><i class="box"></i>outside the GB10</span>
+    </div>
+</figure>
+
+</body></html>

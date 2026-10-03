@@ -1,0 +1,1 @@
+PR-time path · seconds learning loop · batched offline · nightly model on ollama table outside the GB10
