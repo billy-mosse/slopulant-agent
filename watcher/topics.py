@@ -378,8 +378,11 @@ def rank_against_base(conn, base_sha, pr_folder, pr_entry):
     sorted best-first, with rank and candidate flag."""
     base = ensure_folders(conn, base_sha, gitrepo.folders(base_sha))
     idf = keywords.TfidfIndex([t["keywords"] for e in base.values() for t in e["topics"]])
+    # Description similarity of each PR topic to every topic, from the sqlite-vec index
+    # (k-nearest-neighbour query in watcher.db); None = compute in numpy instead.
+    sims = [db.topic_similarities(conn, t["embedding"]) for t in pr_entry["topics"]] if db.vector_search(conn) else None
     rows = [
-        {"repo_id": repo_id, **compare(pr_entry, other, idf)}
+        {"repo_id": repo_id, **compare(pr_entry, other, idf, sims)}
         for repo_id, other in base.items()
         if repo_id != pr_folder  # don't compare against its own pre-PR version
     ]
@@ -405,13 +408,16 @@ def _shared_tables(ours, theirs):
     return {theirs_bare[bare(t)] for t in ours if bare(t) in theirs_bare}
 
 
-def compare(pr_entry, other, idf):
+def compare(pr_entry, other, idf, sims=None):
     """Signals for one (PR folder, other folder) pair: the best-matching topic pair.
-    idf: keywords.TfidfIndex fitted on the topics on base."""
+    idf: keywords.TfidfIndex fitted on the topics on base. sims: per PR topic,
+    {topics.rowid: cosine} from the vector index (db.topic_similarities), if available."""
     best = None
-    for tp in pr_entry["topics"]:
+    for i, tp in enumerate(pr_entry["topics"]):
         for to in other["topics"]:
-            desc = float(tp["embedding"] @ to["embedding"])
+            desc = sims[i].get(to.get("rowid")) if sims else None
+            if desc is None:
+                desc = float(tp["embedding"] @ to["embedding"])
             kw = idf.similarity(tp["keywords"], to["keywords"])
             # Mean of description and keyword similarity: best ranking and separation
             # on eval/prompt_lab.py. Function similarity is evidence only (chance-level

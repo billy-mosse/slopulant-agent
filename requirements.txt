@@ -2,3 +2,4 @@ requests
 numpy
 sentence-transformers
 tqdm
+sqlite-vec

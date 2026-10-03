@@ -7,6 +7,16 @@ import numpy as np
 
 from . import config
 
+try:  # vector search inside SQLite (https://github.com/asg017/sqlite-vec); optional
+    import sqlite_vec
+except ImportError:
+    sqlite_vec = None
+
+# Topic description embeddings, indexed for nearest-neighbour search. rowid = topics.rowid;
+# llm_model/embed_model are metadata columns so a query only sees the active models' topics.
+VEC_TABLE = """CREATE VIRTUAL TABLE IF NOT EXISTS topic_vec USING vec0(
+    llm_model text, embed_model text, embedding float[{dim}] distance_metric=cosine)"""
+
 # Bump when SCHEMA changes: everything here is derived state, so old tables are dropped.
 SCHEMA_VERSION = 8
 
@@ -173,7 +183,61 @@ def connect():
     # Additive migrations (no SCHEMA_VERSION bump, so cached topics survive).
     if "threshold" not in {r["name"] for r in conn.execute("PRAGMA table_info(decisions)")}:
         conn.execute("ALTER TABLE decisions ADD COLUMN threshold REAL")
+    _load_vec(conn)
     return conn
+
+
+def _load_vec(conn):
+    """Loads sqlite-vec and makes sure topic_vec mirrors topics (backfills on first use)."""
+    if sqlite_vec is None:
+        return
+    try:
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+        conn.enable_load_extension(False)
+    except (AttributeError, sqlite3.OperationalError):
+        return
+    if vector_search(conn):
+        n_vec = conn.execute("SELECT count(*) FROM topic_vec").fetchone()[0]
+        if n_vec == conn.execute("SELECT count(*) FROM topics").fetchone()[0]:
+            return
+        conn.execute("DELETE FROM topic_vec")
+    rows = conn.execute("SELECT rowid, llm_model, embed_model, embedding FROM topics").fetchall()
+    if rows:
+        _ensure_vec_table(conn, len(rows[0]["embedding"]) // 4)
+        conn.executemany("INSERT INTO topic_vec (rowid, llm_model, embed_model, embedding) VALUES (?, ?, ?, ?)",
+                         [tuple(r) for r in rows])
+        conn.commit()
+
+
+def _ensure_vec_table(conn, dim):
+    conn.execute(VEC_TABLE.format(dim=dim))
+
+
+def _vec_loaded(conn):
+    try:
+        conn.execute("SELECT vec_version()")
+        return True
+    except sqlite3.OperationalError:
+        return False
+
+
+def vector_search(conn):
+    """True if this connection has sqlite-vec loaded and the topic_vec index exists."""
+    return _vec_loaded(conn) and conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'topic_vec'").fetchone() is not None
+
+
+def topic_similarities(conn, embedding):
+    """{topics.rowid: cosine similarity} of one embedding to every topic of the active
+    models: a k-nearest-neighbour query on topic_vec with k = all of them."""
+    key = (llm_cache_key(), config.EMBED_MODEL)
+    k = conn.execute("SELECT count(*) FROM topic_vec WHERE llm_model = ? AND embed_model = ?", key).fetchone()[0]
+    if not k:
+        return {}
+    rows = conn.execute(
+        "SELECT rowid, distance FROM topic_vec WHERE embedding MATCH ? AND k = ? AND llm_model = ? AND embed_model = ?",
+        (np.asarray(embedding, dtype=np.float32).tobytes(), k, *key))
+    return {r["rowid"]: 1.0 - r["distance"] for r in rows}
 
 
 def enqueue(conn, pr_number, head_sha, base_sha):
@@ -263,12 +327,12 @@ def get_folder(conn, tree_sha):
     entry["func_embeddings"] = funcs.reshape(len(entry["func_names"]), -1) if entry["func_names"] else funcs
     entry["topics"] = [
         {
-            "name": t["name"], "description": t["description"],
+            "rowid": t["rowid"], "name": t["name"], "description": t["description"],
             "embedding": np.frombuffer(t["embedding"], dtype=np.float32),
             **{k: json.loads(t[k]) for k in ("keywords", "inputs", "outputs")},
         }
         for t in conn.execute(
-            "SELECT * FROM topics WHERE tree_sha = ? AND llm_model = ? AND embed_model = ? ORDER BY idx", key
+            "SELECT rowid, * FROM topics WHERE tree_sha = ? AND llm_model = ? AND embed_model = ? ORDER BY idx", key
         )
     ]
     return entry
@@ -276,15 +340,21 @@ def get_folder(conn, tree_sha):
 
 def put_folder(conn, tree_sha, entry):
     key = (tree_sha, llm_cache_key(), config.EMBED_MODEL)
+    vec = _vec_loaded(conn)
+    if vector_search(conn):
+        conn.execute("DELETE FROM topic_vec WHERE rowid IN (SELECT rowid FROM topics WHERE tree_sha = ? AND llm_model = ? "
+                     "AND embed_model = ?)", key)
     conn.execute("DELETE FROM topics WHERE tree_sha = ? AND llm_model = ? AND embed_model = ?", key)
-    conn.executemany(
-        "INSERT INTO topics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-            (*key, i, t["name"], t["description"], np.asarray(t["embedding"], dtype=np.float32).tobytes(),
-             json.dumps(t["keywords"]), json.dumps(t["inputs"]), json.dumps(t["outputs"]))
-            for i, t in enumerate(entry["topics"])
-        ],
-    )
+    for i, t in enumerate(entry["topics"]):
+        blob = np.asarray(t["embedding"], dtype=np.float32).tobytes()
+        cur = conn.execute(
+            "INSERT INTO topics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (*key, i, t["name"], t["description"], blob,
+             json.dumps(t["keywords"]), json.dumps(t["inputs"]), json.dumps(t["outputs"])))
+        if vec:  # keep the vector index in step with topics
+            _ensure_vec_table(conn, len(blob) // 4)
+            conn.execute("INSERT INTO topic_vec (rowid, llm_model, embed_model, embedding) VALUES (?, ?, ?, ?)",
+                         (cur.lastrowid, key[1], key[2], blob))
     conn.execute(
         "INSERT OR REPLACE INTO folders VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (*key, entry["folder"], entry["n_chunks"], json.dumps(entry["func_names"]),
