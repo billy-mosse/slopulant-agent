@@ -4,8 +4,10 @@ and reset the repo to it.
 Baseline = main's commit + which test branches have an open PR. Reset force-pushes
 main back, re-opens the baseline PRs (merged ones come back as new PRs from the
 same branch: GitHub can't un-merge), closes PRs opened during the demo, and clears
-demo results from the DB. Cached topics are kept: they're keyed by content."""
+demo results from the DB, including the Discord worker's record of what it posted (archived
+first). Cached topics are kept: they're keyed by content."""
 import json
+import sqlite3
 import time
 
 from . import config, db, github, gitrepo
@@ -70,6 +72,33 @@ def baseline(conn):
     return json.loads(raw) if raw else None
 
 
+DISCORD_TABLES = ("discord_feedback", "discord_notifications", "discord_decisions")  # child tables first
+
+
+def clear_discord(conn):
+    """Forget what the Discord worker has posted for this repo, so a re-run posts a fresh alert
+    (it posts once per PR revision). The 👍/👎 votes are labels for re-tuning, so every row is
+    archived to DATA_DIR/discord_archive/ first. Messages already in the channel stay there."""
+    try:
+        decisions = [dict(r) for r in conn.execute("SELECT * FROM discord_decisions WHERE repository = ?", (config.GITHUB_REPO,))]
+    except sqlite3.OperationalError:  # the Discord worker hasn't created its tables yet
+        return 0
+    if not decisions:
+        return 0
+    ids = [d["decision_id"] for d in decisions]
+    marks = ",".join("?" * len(ids))
+    archive = {"repository": config.GITHUB_REPO, "archived_at": time.time(), "discord_decisions": decisions}
+    for table in DISCORD_TABLES[:2]:
+        archive[table] = [dict(r) for r in conn.execute(f"SELECT * FROM {table} WHERE decision_id IN ({marks})", ids)]
+    out = config.DATA_DIR / "discord_archive"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / time.strftime("%Y%m%d-%H%M%S.json")).write_text(json.dumps(archive, indent=1))
+    for table in DISCORD_TABLES:
+        conn.execute(f"DELETE FROM {table} WHERE decision_id IN ({marks})", ids)
+    conn.commit()
+    return len(ids)
+
+
 def reset(conn):
     base = baseline(conn)
     if not base:
@@ -95,5 +124,8 @@ def reset(conn):
     # Discord alert stays pending.
     conn.execute("DELETE FROM kv WHERE key LIKE 'indexed_base_sha%' OR key = 'last_error' OR key LIKE 'clm_finished:%'")
     conn.commit()
+    cleared = clear_discord(conn)
+    if cleared:
+        steps.append(f"cleared {cleared} Discord alert(s) so they post again")
     db.add_event(conn, "reset", "reset to baseline: " + ("; ".join(steps) or "nothing to change"), steps=steps)
     return steps

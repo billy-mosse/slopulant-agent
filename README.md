@@ -96,8 +96,9 @@ the same process, for laptop use).
   OpenRouter.
 - **`/demo` Live pipeline:** an architecture diagram whose boxes light up as each
   stage runs, plus a timeline and the result. Open a test PR, merge it, or **Reset
-  demo**: that force-pushes `main` back to the saved baseline and restores the
-  baseline's PRs.
+  demo**: that force-pushes `main` back to the saved baseline, restores the
+  baseline's PRs and clears what the Discord worker posted, so a re-run posts a fresh
+  alert (the old rows, 👍/👎 votes included, are archived to `data/discord_archive/`).
 
 ## Evaluation
 
