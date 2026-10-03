@@ -12,7 +12,8 @@ What it sets up:
     read by `python -m dupcheck_discord openclaw-sync`).
   - Discord routes to the `watcher` agent (the same agent that drafts the alerts).
   - `watcher` gets only the read-only `slopulant` MCP tools (watcher/mcp_server.py):
-    thread messages are untrusted, so no shell, files, web or config tools.
+    thread messages are untrusted, so no shell, files, web or config tools. Tool schemas
+    are given to the model directly (tools.toolSearch = false).
 
     python deploy/openclaw_config.py | openclaw config patch --stdin
 """
@@ -65,6 +66,9 @@ def main():
             }},
         }},
         "bindings": [{"type": "route", "agentId": "watcher", "match": {"channel": "discord"}}],
+        # Give the model the tool schemas directly. With OpenClaw's default Tool Search, Qwen
+        # only saw tool names and guessed the arguments (then invented code when calls failed).
+        "tools": {"toolSearch": False},
         "mcp": {"servers": {"slopulant": {
             "command": str(ROOT / ".venv" / "bin" / "python"),
             "args": ["-m", "watcher.mcp_server"],
