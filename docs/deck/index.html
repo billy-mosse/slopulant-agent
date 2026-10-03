@@ -83,7 +83,7 @@
   .state.main { background: #30363d; color: var(--gh-text); }
   .file { font: 500 13px "JetBrains Mono", monospace; color: var(--gh-text); padding: 9px 16px; border-bottom: 1px solid var(--gh-border); display: flex; gap: 10px; align-items: center; }
   .file .plus { color: var(--gh-add-sign); } .file .owner { margin-left: auto; color: var(--gh-muted); font-family: "IBM Plex Sans"; }
-  .code { font: 400 13.5px/1.62 "JetBrains Mono", monospace; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }
+  .code { font: 400 14.5px/1.7 "JetBrains Mono", monospace; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }
   .code .ln { display: grid; grid-template-columns: 48px 22px 1fr; white-space: pre; }
   .code .n { color: var(--gh-muted); text-align: right; padding-right: 10px; }
   .code .add { background: var(--gh-add); } .code .add .n { background: var(--gh-add-num); color: #8fd19e; } .code .add .g { color: var(--gh-add-sign); }
@@ -94,13 +94,12 @@
 
   .pr { left: 72px; top: 160px; width: 630px; }
   .main1 { left: 912px; top: 160px; width: 616px; }
-  .main2 { left: 912px; top: 488px; width: 616px; }
-  .oc { left: 72px; top: 598px; width: 640px; }
+  .oc { left: 72px; top: 520px; width: 1456px; }
   .oc .bar { gap: 12px; }
   .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 13px "JetBrains Mono"; color: #07070b;
     background: linear-gradient(135deg, var(--magenta), var(--cyan)); flex: none; }
   .bot { font: 600 11px "IBM Plex Sans"; color: var(--gh-muted); border: 1px solid var(--gh-border); border-radius: 999px; padding: 0 7px; }
-  .oc .body { padding: 14px 18px; display: grid; gap: 12px; font-size: 16px; line-height: 1.5; }
+  .oc .body { padding: 16px 20px; display: grid; gap: 14px; font-size: 18px; line-height: 1.5; }
   .oc .body code { font: 500 14px "JetBrains Mono", monospace; background: rgba(110,118,129,.2); padding: 1px 5px; border-radius: 5px; }
   .verdicts { display: flex; gap: 10px; flex-wrap: wrap; }
   .v { display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 8px; font-size: 14px; border: 1px solid; }
@@ -109,6 +108,51 @@
   .v b { font-family: "JetBrains Mono"; font-weight: 600; }
 
   .links { position: absolute; inset: 0; pointer-events: none; }
+
+  /* --- 4: future work --- */
+  .s4 { background: radial-gradient(900px 600px at 95% 105%, rgba(102,217,255,.12), transparent 60%),
+                    radial-gradient(800px 500px at 0% 0%, rgba(255,62,200,.10), transparent 60%), var(--void); }
+  .s4 .head { position: absolute; left: 72px; top: 46px; right: 72px; }
+  .s4 h2 { font-size: 46px; line-height: 1.06; }
+  .s4 h2 em.serif { color: var(--magenta); }
+  .s4 .col { position: absolute; top: 160px; bottom: 56px; display: grid; grid-template-rows: auto 1fr; gap: 16px; }
+  .s4 .left { left: 72px; width: 800px; }
+  .s4 .right { left: 930px; width: 598px; }
+  .col-title { font: 700 24px "Bricolage Grotesque", sans-serif; display: flex; align-items: center; gap: 12px; }
+  .step { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 600 15px "JetBrains Mono", monospace;
+    color: var(--void); background: linear-gradient(135deg, var(--magenta), var(--cyan)); }
+  .thread { display: grid; gap: 12px; align-content: start; }
+  .msg { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; }
+  .msg .avatar { width: 38px; height: 38px; }
+  .avatar.human { background: var(--h); color: #07070b; }
+  .bubble { background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 10px; padding: 10px 14px;
+    font: 400 16px/1.45 "IBM Plex Sans", sans-serif; color: var(--gh-text); display: grid; gap: 6px; }
+  .bubble.agent { border-color: rgba(255,62,200,.5); box-shadow: 0 0 0 1px rgba(255,62,200,.15), 0 10px 30px rgba(255,62,200,.08); }
+  .bubble .who { font-size: 13.5px; color: var(--gh-muted); }
+  .bubble .who b { color: var(--gh-text); }
+  .bubble code { font: 500 14px "JetBrains Mono", monospace; background: rgba(110,118,129,.2); padding: 1px 5px; border-radius: 5px; }
+  .mention { color: var(--gh-blue); font-weight: 600; }
+  .reacts { display: flex; gap: 6px; }
+  .reacts span { font-size: 13px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--gh-border); color: var(--gh-muted); }
+  .reacts span.on { border-color: rgba(47,129,247,.6); background: rgba(47,129,247,.15); color: #a5c8ff; }
+  .flow { display: grid; gap: 14px; align-content: start; }
+  .react-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill { padding: 7px 14px; border-radius: 999px; font: 500 16px "IBM Plex Sans", sans-serif; border: 1px solid; }
+  .pill.up { border-color: rgba(63,185,80,.55); background: rgba(63,185,80,.12); color: #8fe39a; }
+  .pill.down { border-color: rgba(248,81,73,.55); background: rgba(248,81,73,.12); color: #ffa198; }
+  .flow-arrow { color: var(--muted); font: 500 15px "JetBrains Mono", monospace; }
+  .dial { background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 12px; padding: 14px 18px 16px; display: grid; gap: 10px; }
+  .dial-name { font: 600 18px "IBM Plex Sans", sans-serif; }
+  .dial-name span { color: var(--muted); font-weight: 400; font-size: 15px; margin-left: 6px; }
+  .track { position: relative; height: 10px; border-radius: 999px; background: linear-gradient(90deg, rgba(102,217,255,.25), rgba(255,62,200,.25)); }
+  .track .move { position: absolute; top: 3px; height: 4px; background: rgba(255,255,255,.55); border-radius: 2px; }
+  .track .ghost, .track .mark { position: absolute; top: 50%; width: 20px; height: 20px; margin-left: -10px; transform: translateY(-50%); border-radius: 50%; }
+  .track .ghost { border: 2px dashed rgba(255,255,255,.45); }
+  .track .mark { background: var(--ink); box-shadow: 0 0 0 4px rgba(255,62,200,.45); }
+  .scale { display: flex; justify-content: space-between; font: 500 13px "JetBrains Mono", monospace; color: var(--muted); }
+  .scale span:nth-child(2) { color: var(--ink); }
+  .dial .why { font-size: 15px; color: #d8d3ea; }
+  .foot { font-size: 13px; color: var(--muted); }
   .tag { font: 700 15px "IBM Plex Sans", sans-serif; }
   .tag-sub { font: 500 13px "IBM Plex Sans", sans-serif; }
 
@@ -266,7 +310,7 @@
   <section class="slide s3" aria-label="Example: PR 9">
     <div class="head">
       <div class="eyebrow">A real catch · PR #9</div>
-      <h2>Nadia's new SEO titles tool <em class="serif">already exists</em>, two teams over</h2>
+      <h2>Nadia's new SEO titles tool <em class="serif">probably already exists</em>, two teams over</h2>
     </div>
 
     <div class="gh pr">
@@ -274,8 +318,7 @@
       <div class="sub" style="padding:8px 16px;border-bottom:1px solid var(--gh-border)"><b>Nadia Karimi</b> wants to merge 1 commit into <b>main</b> from <b>arjun/seo-titles</b></div>
       <div class="file"><span class="plus">+179</span> seo_titles/make_titles.py</div>
       <div class="code">
-        <div class="ln add hlb" id="pr-attrs"><span class="n">58</span><span class="g">+</span><span>ATTRS_SQL = <span class="str">"SELECT … FROM catalog.product_attributes"</span></span></div>
-        <div class="ln add"><span class="n">59</span><span class="g">+</span><span>OUT_TABLE = <span class="str">"content.pdp_titles"</span></span></div>
+        <div class="ln add"><span class="n">22</span><span class="g">+</span><span>MAX_LEN = <span class="nb">65</span>  <span class="c"># Google shows ~60-65 chars of a title</span></span></div>
         <div class="gap">⋯</div>
         <div class="ln add hl" id="pr-fn"><span class="n">64</span><span class="g">+</span><span><span class="k">def</span> <span class="f">strip_promo</span>(text):</span></div>
         <div class="ln add hl"><span class="n">67</span><span class="g">+</span><span>    cleaned = PROMO_RE.sub(<span class="str">" "</span>, text)</span></div>
@@ -288,26 +331,21 @@
       <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">title_rewriter/ <span>· SEO titles from attributes</span></span></div>
       <div class="file">rewrite_titles.py <span class="owner">owner: <b style="color:var(--gh-text)">Sofia Brandt</b></span></div>
       <div class="code">
+        <div class="ln"><span class="n">27</span><span class="g"></span><span><span class="k">from</span> templates <span class="k">import</span> MAX_TITLE_CHARS, template_for</span></div>
+        <div class="gap">⋯</div>
         <div class="ln hl" id="main-fn"><span class="n">57</span><span class="g"></span><span><span class="k">def</span> <span class="f">strip_noise</span>(text: <span class="nb">str</span>) -&gt; <span class="nb">str</span>:</span></div>
-        <div class="ln"><span class="n">58</span><span class="g"></span><span>    <span class="c">"""Remove merchant noise like '!!!', 'SALE'..."""</span></span></div>
         <div class="ln hl"><span class="n">59</span><span class="g"></span><span>    text = NOISE_RE.sub(<span class="str">" "</span>, text <span class="k">or</span> <span class="str">""</span>)</span></div>
         <div class="ln hl"><span class="n">60</span><span class="g"></span><span>    text = re.sub(<span class="str">r"\s*([,|-])\s*(?=[,|-]|$)"</span>, <span class="str">""</span>, text)</span></div>
         <div class="ln hl"><span class="n">61</span><span class="g"></span><span>    <span class="k">return</span> re.sub(<span class="str">r"\s{2,}"</span>, <span class="str">" "</span>, text).strip(<span class="str">" ,-|"</span>)</span></div>
       </div>
     </div>
 
-    <div class="gh main2">
-      <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">attribute_extraction/ <span>· attributes from text</span></span></div>
-      <div class="file" style="border-bottom:0" id="main-attrs">writes <span style="color:#a5d6ff">catalog.product_attributes</span> <span class="owner">owner: <b style="color:var(--gh-text)">Sofia Brandt</b></span></div>
-    </div>
-
     <div class="gh oc">
       <div class="bar"><span class="avatar">oc</span><span><b>slopulant-watcher</b> <span class="bot">bot</span> <span class="sub">commented on #9 · 71 s after it opened</span></span></div>
       <div class="body">
-        <div>Hi Nadia! Your <code>seo_titles</code> PR looks close to Sofia Brandt's <code>title_rewriter</code>, and it reads from <code>attribute_extraction</code>. Sync with Sofia: is this a replacement or an extension?</div>
+        <div>Hi Nadia! Your <code>seo_titles</code> PR looks close to Sofia Brandt's <code>title_rewriter</code>: similar goal, different approach. A good next step would be to sync with Sofia: are you building a replacement or an extension?</div>
         <div class="verdicts">
-          <span class="v dup">🟥 <b>title_rewriter</b> · partial duplicate · 0.85</span>
-          <span class="v up">🟦 <b>attribute_extraction</b> · reads its output · 0.95</span>
+          <span class="v dup">🟥 <b>title_rewriter</b> · owner Sofia Brandt · classifier: partial duplicate (0.85) · topic match 0.53</span>
         </div>
       </div>
     </div>
@@ -315,20 +353,83 @@
     <svg class="links" viewBox="0 0 1600 900" aria-hidden="true">
       <defs>
         <marker id="am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff3ec8"/></marker>
-        <marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2f81f7"/></marker>
       </defs>
       <path id="link-dup" d="" fill="none" stroke="#ff3ec8" stroke-width="3" marker-end="url(#am)"/>
-      <path id="link-up" d="" fill="none" stroke="#2f81f7" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ab)"/>
-      <g id="lab-dup"><rect rx="8" fill="#1a0a16" stroke="#ff3ec8"/><text class="tag" fill="#ff8be0">same job</text><text class="tag-sub" fill="#d9a9cc">topic match 0.53</text></g>
-      <g id="lab-up"><rect rx="8" fill="#0a1426" stroke="#2f81f7"/><text class="tag" fill="#a5c8ff">reads its table</text><text class="tag-sub" fill="#8fb0de">upstream</text></g>
+      <g id="lab-dup"><rect rx="8" fill="#1a0a16" stroke="#ff3ec8"/><text class="tag" fill="#ff8be0">potential duplicate</text><text class="tag-sub" fill="#d9a9cc">same job · near-identical cleanup</text></g>
     </svg>
+  </section>
+
+  <!-- 4 · FUTURE WORK -->
+  <section class="slide s4" aria-label="Future work">
+    <div class="head">
+      <div class="eyebrow">Future work</div>
+      <h2>From a flag on the PR <em class="serif">to a teammate in the thread</em></h2>
+    </div>
+
+    <div class="col left">
+      <div class="col-title"><span class="step">1</span> Talk it through on the PR</div>
+      <div class="thread">
+        <div class="msg">
+          <span class="avatar">oc</span>
+          <div class="bubble">
+            <div class="who"><b>slopulant-watcher</b> <span class="bot">bot</span></div>
+            <div>Looks close to Sofia Brandt's <code>title_rewriter</code> (partial duplicate · 0.85).</div>
+            <div class="reacts"><span>👀 1</span></div>
+          </div>
+        </div>
+        <div class="msg">
+          <span class="avatar human" style="--h: #3fb9a5">NK</span>
+          <div class="bubble">
+            <div class="who"><b>Nadia Karimi</b></div>
+            <div><span class="mention">@slopulant-watcher</span> what's actually different? We need titles under 65 chars and our own keyword order.</div>
+          </div>
+        </div>
+        <div class="msg">
+          <span class="avatar">oc</span>
+          <div class="bubble agent">
+            <div class="who"><b>slopulant-watcher</b> <span class="bot">bot</span></div>
+            <div><code>title_rewriter</code> already does the noise cleanup and slot dropping you rewrote. Its 70-char cap is one constant, and your keyword order fits as a new template in <code>templates.py</code>. Want me to loop Sofia in?</div>
+            <div class="reacts"><span class="on">❤️ 2</span><span>👍 1</span></div>
+          </div>
+        </div>
+        <div class="msg">
+          <span class="avatar human" style="--h: #c77dff">SB</span>
+          <div class="bubble">
+            <div class="who"><b>Sofia Brandt</b></div>
+            <div>Happy to review a <code>seo_strict</code> template. Ping me 🙌</div>
+            <div class="reacts"><span class="on">❤️ 1</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col right">
+      <div class="col-title"><span class="step">2</span> Learn from reactions</div>
+      <div class="flow">
+        <div class="react-row"><span class="pill up">👍 on a catch</span><span class="pill down">👎 on a false alarm</span></div>
+        <div class="flow-arrow">↓ logged with the PR, topics and scores</div>
+        <div class="dial">
+          <div class="dial-name">Candidate generation <span>similarity floor</span></div>
+          <div class="track"><span class="ghost" style="left: 40%"></span><span class="mark" style="left: 30%"></span><span class="move" style="left: 30%; width: 10%"></span></div>
+          <div class="scale"><span>0.30</span><span>0.38 → 0.36</span><span>0.50</span></div>
+          <div class="why">👍 on a match that barely made the cut → lower the floor, catch more</div>
+        </div>
+        <div class="dial">
+          <div class="dial-name">CLM classifier <span>min confidence to alert</span></div>
+          <div class="track"><span class="ghost" style="left: 40%"></span><span class="mark" style="left: 56%"></span><span class="move" style="left: 40%; width: 16%"></span></div>
+          <div class="scale"><span>0.50</span><span>0.70 → 0.78</span><span>1.00</span></div>
+          <div class="why">👎 on a flagged "duplicate" → raise the bar, keep it as a negative example</div>
+        </div>
+        <div class="foot">Illustrative values. Thresholds are tuned per relation type, on reactions from real PRs.</div>
+      </div>
+    </div>
   </section>
 
 </div></div>
 
 <button class="deck-nav navbtn prev" id="prev" aria-label="Previous slide">‹</button>
 <button class="deck-nav navbtn next" id="next" aria-label="Next slide">›</button>
-<div class="deck-nav counter" id="count">1 / 3</div>
+<div class="deck-nav counter" id="count">1 / 4</div>
 
 <script>
   const deck = document.getElementById("deck");
@@ -361,13 +462,10 @@
     rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", w); rect.setAttribute("height", 52);
   }
   function drawLinks() {
-    const a = box("pr-fn"), b = box("main-fn"), c = box("pr-attrs"), d = box("main-attrs");
+    const a = box("pr-fn"), b = box("main-fn");
     const ax = a.x + a.w + 6, ay = a.y + a.h * 2, bx = b.x - 8, by = b.y + b.h * 2;
     document.getElementById("link-dup").setAttribute("d", `M${ax},${ay} C${ax + 90},${ay} ${bx - 90},${by} ${bx},${by}`);
-    label("lab-dup", (ax + bx) / 2 - 66, Math.min(ay, by) - 70);
-    const cx = c.x + c.w + 6, cy = c.y + c.h / 2, dx = d.x - 8, dy = d.y + d.h / 2;
-    document.getElementById("link-up").setAttribute("d", `M${cx},${cy} C${cx + 60},${cy + 40} ${dx - 160},${dy} ${dx},${dy}`);
-    label("lab-up", dx - 170, dy + 18);
+    label("lab-dup", (ax + bx) / 2 - 100, Math.max(ay, by) + 30);
   }
   addEventListener("resize", () => { fit(); if (slides[i].classList.contains("s3")) drawLinks(); });
   window.deckShow = show;  // used by the comments panel to jump to a comment's slide
