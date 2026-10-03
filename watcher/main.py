@@ -195,10 +195,13 @@ def process(conn, base_sha, item):
 
 def record_history(conn, base_sha, item, entries, rows, findings, url, source, branch=None, title=None):
     """One row per analysed PR commit for the team view (kept across demo resets)."""
+    item = dict(item)  # queue items are sqlite3.Row (no .get)
     info = teams.load(base_sha)
     pr = conn.execute("SELECT * FROM prs WHERE number = ?", (item["pr_number"],)).fetchone() if item.get("pr_number") else None
     author = gitrepo.commit_author(item["head_sha"])
-    detected = conn.execute("SELECT min(ts) FROM events WHERE kind = 'stage' AND pr_number = ? AND json_extract(data, '$.head_sha') = ?",
+    # latest detection of this commit: a retry after a failure restarts the clock
+    detected = conn.execute("SELECT max(ts) FROM events WHERE kind = 'stage' AND pr_number = ? "
+                            "AND json_extract(data, '$.stage') = 'detect' AND json_extract(data, '$.head_sha') = ?",
                             (item.get("pr_number"), item["head_sha"])).fetchone()[0] if item.get("pr_number") else None
     db.put_history(conn, {
         "branch": branch or (pr["branch"] if pr else "?"), "head_sha": item["head_sha"], "base_sha": base_sha,

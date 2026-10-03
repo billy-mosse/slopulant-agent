@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Slopulent Pipeline</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
   :root {
     --bg: #f4f5f7; --panel: #ffffff; --ink: #1b2430; --muted: #5d6676; --line: #d9dee6; --soft: #eef0f4;
@@ -48,8 +49,6 @@
   .panel-head { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .panel-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
   .meta { color: var(--muted); font-size: 12.5px; }
-  .present { display: none; padding: 12px 14px; gap: 12px; align-items: center; background: var(--accent-soft); border-bottom: 1px solid var(--line); }
-  .present.show { display: flex; }
 
   .diagram { padding: 6px 8px 10px; overflow-x: auto; }
   .diagram svg { display: block; width: 100%; min-width: 900px; height: auto; }
@@ -106,12 +105,8 @@
     <button class="btn" id="merge-pr" disabled>Merge</button>
     <button class="btn danger" id="reset">Reset demo</button>
     <span class="sep"></span>
-    <button class="btn" id="present">Present side by side</button>
+    <button class="btn" id="present" title="Opens GitHub on the right half of the screen; it follows the pipeline">Present side by side</button>
     <a class="btn" href="/" style="text-decoration:none">Team view</a>
-  </div>
-  <div class="present" id="present-step">
-    <b>Step 2 of 2.</b> <span>Open GitHub in the right half of the screen. It will follow the pipeline.</span>
-    <button class="btn primary" id="open-gh">Open GitHub on the right</button>
   </div>
 </header>
 
@@ -293,12 +288,9 @@ function rightHalf() {
   const sx = screen.availLeft ?? 0, sy = screen.availTop ?? 0, w = Math.floor(screen.availWidth / 2), h = screen.availHeight;
   return `popup=yes,left=${sx + w},top=${sy},width=${w},height=${h}`;
 }
-function leftHalf() {
-  const sx = screen.availLeft ?? 0, sy = screen.availTop ?? 0, w = Math.floor(screen.availWidth / 2), h = screen.availHeight;
-  return `popup=yes,left=${sx},top=${sy},width=${w},height=${h}`;
-}
 function ghStatus() {
   const ok = gh && !gh.closed;
+  $("#present").hidden = !!ok;  // one button: gone while GitHub is open, back if that window is closed
   $("#gh-status").innerHTML = `<span class="dot ${ok ? "on" : "off"}"></span>GitHub pane: ${ok ? esc(ghFollowing || "open") : "not open"}`;
 }
 function follow(url, label) {
@@ -313,20 +305,22 @@ function bust(url) {  // reload the PR page so a fresh comment is there, then ju
   const [base, hash] = url.split("#");
   return `${base}${base.includes("?") ? "&" : "?"}oc=${Date.now()}${hash ? "#" + hash : ""}`;
 }
-$("#open-gh").onclick = () => {
+function opened(w, what) {
+  // window.open returns null when Chrome blocks the pop-up; some setups return a window that closes at once.
+  if (!w) { toast(`Chrome blocked the ${what} window. Allow pop-ups for 127.0.0.1:8765 (Chrome menu → Settings → Privacy and security → Site settings → Pop-ups and redirects → Allowed), then click again.`, 12000); return false; }
+  try { w.focus(); } catch (e) {}
+  setTimeout(() => { if (w.closed) toast(`The ${what} window was closed right away; Chrome may be blocking pop-ups for this site.`, 10000); }, 800);
+  return true;
+}
+function openGitHub() {
   const url = P?.focus ? P.focus.url : `https://github.com/${P?.repo || ""}/pulls`;
   gh = window.open(url, GH_NAME, rightHalf());
-  if (!gh) { toast("Chrome blocked the window: allow pop-ups for this site (icon at the right of the address bar), then click again.", 8000); return; }
+  if (!opened(gh, "GitHub")) return;
   ghFollowing = P?.focus ? `PR #${P.focus.number}` : "pull requests";
-  $("#present-step").classList.remove("show"); ghStatus();
-};
-$("#present").onclick = () => {
-  if (window.name === "slopulant-demo") { $("#present-step").classList.add("show"); return; }
-  const w = window.open(location.pathname + "#present", "slopulant-demo", leftHalf());
-  if (!w) { toast("Chrome blocked the window: allow pop-ups for this site, then click again.", 8000); return; }
-  toast("Continue in the new window on the left: click “Open GitHub on the right”.", 6000);
-};
-if (location.hash === "#present" || window.name === "slopulant-demo") $("#present-step").classList.add("show");
+  ghStatus();
+  toast("GitHub is open on the right half. It follows the pipeline from now on.", 5000);
+}
+$("#present").onclick = openGitHub;
 
 // react to new events (only those after the page loaded)
 function onEvents(p) {
