@@ -1,0 +1,366 @@
+<title>Slopulant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --void: #07070b; --ink: #f5f2ff; --muted: #a9a4bd; --magenta: #ff3ec8; --cyan: #66d9ff; --violet: #8b6bff;
+    /* GitHub dark */
+    --gh-canvas: #0d1117; --gh-panel: #161b22; --gh-border: #30363d; --gh-text: #e6edf3; --gh-muted: #7d8590;
+    --gh-add: #12261e; --gh-add-num: #1b4721; --gh-add-sign: #3fb950; --gh-del: #f85149; --gh-open: #238636;
+    --gh-blue: #2f81f7; --gh-hl: rgba(255, 62, 200, .14);
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--void); color: var(--ink); overflow: hidden;
+    font: 400 22px/1.45 "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif; }
+  .viewport { position: fixed; inset: 0; display: grid; place-items: center; }
+  .deck { width: 1600px; height: 900px; position: relative; transform-origin: center center; flex: none; }
+  .slide { position: absolute; inset: 0; overflow: hidden; background: var(--void); opacity: 0; visibility: hidden; transition: opacity .35s ease; }
+  .slide.on { opacity: 1; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+
+  .eyebrow { font: 600 15px "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+  h1, h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+  em.serif { font-family: "Instrument Serif", serif; font-style: italic; font-weight: 400; letter-spacing: 0; }
+
+  /* --- 1: problem --- */
+  .s1 .bg { position: absolute; inset: 0; background: #000 url("slop_cannon.png") center / cover no-repeat; }
+  .s1 .shade { position: absolute; inset: 0;
+    background:
+      linear-gradient(to top, rgba(4,4,8,.96) 0%, rgba(4,4,8,.88) 30%, rgba(4,4,8,.0) 62%),
+      linear-gradient(to right, rgba(4,4,8,.55) 0%, rgba(4,4,8,0) 55%);
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 52%, transparent 66%);
+            mask-image: linear-gradient(to right, #000 0%, #000 52%, transparent 66%); }
+  .s1 .copy { position: absolute; left: 72px; bottom: 64px; width: 790px; display: grid; gap: 22px; }
+  .s1 h1 { font-size: 64px; line-height: 1.02; }
+  .s1 h1 em.serif { color: var(--magenta); font-size: 70px; }
+  .s1 ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+  .s1 li { display: grid; grid-template-columns: 30px 1fr; font-size: 22px; color: #e4defa; }
+  .s1 li b { color: var(--ink); font-weight: 600; }
+  .s1 li::before { content: "▸"; color: var(--magenta); }
+
+  /* --- 2: architecture --- */
+  .s2 { background: radial-gradient(1200px 700px at 85% -10%, rgba(139,107,255,.18), transparent 60%), var(--void); }
+  .s2 .head { position: absolute; left: 72px; top: 52px; right: 72px; display: flex; align-items: end; justify-content: space-between; gap: 40px; }
+  .s2 h2 { font-size: 50px; line-height: 1.05; }
+  .s2 .head p { margin: 0; max-width: 560px; color: var(--muted); font-size: 19px; }
+  .diagram { position: absolute; left: 72px; right: 72px; top: 178px; bottom: 50px; border-radius: 18px; padding: 18px 26px;
+    background: #fbfbfd; color: #1c2330; box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
+    --panel: #ffffff; --ink: #1c2330; --muted: #5b6474; --line: #c9d0db; --llm: #2f5d8a; --llm-soft: #e6eef7;
+    --store: #7a5a1f; --store-soft: #f6efe2; --future: #8a93a3; --hit: #1f7a4d; --accent: #6a3fe0; }
+  .diagram svg { width: 100%; height: 100%; display: block; color: #1c2330; }
+  .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  .box.llm { fill: var(--llm-soft); stroke: var(--llm); }
+  .box.store { fill: var(--store-soft); stroke: var(--store); }
+  .t { fill: var(--ink); font: 600 13px "IBM Plex Sans", sans-serif; }
+  .s { fill: var(--muted); font: 400 11.5px "IBM Plex Sans", sans-serif; }
+  .m { fill: var(--muted); font: 400 11px "IBM Plex Mono", monospace; }
+  .edge { fill: none; stroke: currentColor; stroke-width: 1.4; }
+  .edge.faint { stroke: var(--line); }
+  .lbl { fill: var(--muted); font: 500 11px "IBM Plex Sans", sans-serif; }
+
+  /* --- 3: example --- */
+  .s3 { background: radial-gradient(900px 600px at 10% 110%, rgba(255,62,200,.12), transparent 60%), var(--void); }
+  .s3 .head { position: absolute; left: 72px; top: 46px; right: 72px; }
+  .s3 h2 { font-size: 46px; line-height: 1.06; }
+  .s3 h2 em.serif { color: var(--cyan); }
+  .gh { position: absolute; background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 12px; color: var(--gh-text);
+    font: 400 15px "IBM Plex Sans", sans-serif; box-shadow: 0 24px 60px rgba(0,0,0,.45); overflow: hidden; }
+  .gh .bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--gh-border); background: var(--gh-panel); }
+  .gh .title { font: 600 19px "IBM Plex Sans", sans-serif; }
+  .gh .title span { color: var(--gh-muted); font-weight: 400; }
+  .gh .sub { color: var(--gh-muted); font-size: 13.5px; }
+  .gh .sub b { color: var(--gh-text); font-weight: 600; }
+  .state { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px; font: 600 13px "IBM Plex Sans"; color: #fff; }
+  .state.open { background: var(--gh-open); }
+  .state.main { background: #30363d; color: var(--gh-text); }
+  .file { font: 500 13px "JetBrains Mono", monospace; color: var(--gh-text); padding: 9px 16px; border-bottom: 1px solid var(--gh-border); display: flex; gap: 10px; align-items: center; }
+  .file .plus { color: var(--gh-add-sign); } .file .owner { margin-left: auto; color: var(--gh-muted); font-family: "IBM Plex Sans"; }
+  .code { font: 400 13.5px/1.62 "JetBrains Mono", monospace; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }
+  .code .ln { display: grid; grid-template-columns: 48px 22px 1fr; white-space: pre; }
+  .code .n { color: var(--gh-muted); text-align: right; padding-right: 10px; }
+  .code .add { background: var(--gh-add); } .code .add .n { background: var(--gh-add-num); color: #8fd19e; } .code .add .g { color: var(--gh-add-sign); }
+  .code .hl { box-shadow: inset 3px 0 0 var(--magenta); background-image: linear-gradient(var(--gh-hl), var(--gh-hl)); }
+  .code .hlb { box-shadow: inset 3px 0 0 var(--gh-blue); background-image: linear-gradient(rgba(47,129,247,.16), rgba(47,129,247,.16)); }
+  .code .gap { color: var(--gh-muted); padding-left: 70px; font-size: 12px; background: rgba(110,118,129,.08); }
+  .k { color: #ff7b72; } .f { color: #d2a8ff; } .str { color: #a5d6ff; } .c { color: #8b949e; } .nb { color: #79c0ff; }
+
+  .pr { left: 72px; top: 160px; width: 630px; }
+  .main1 { left: 912px; top: 160px; width: 616px; }
+  .main2 { left: 912px; top: 488px; width: 616px; }
+  .oc { left: 72px; top: 598px; width: 640px; }
+  .oc .bar { gap: 12px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 13px "JetBrains Mono"; color: #07070b;
+    background: linear-gradient(135deg, var(--magenta), var(--cyan)); flex: none; }
+  .bot { font: 600 11px "IBM Plex Sans"; color: var(--gh-muted); border: 1px solid var(--gh-border); border-radius: 999px; padding: 0 7px; }
+  .oc .body { padding: 14px 18px; display: grid; gap: 12px; font-size: 16px; line-height: 1.5; }
+  .oc .body code { font: 500 14px "JetBrains Mono", monospace; background: rgba(110,118,129,.2); padding: 1px 5px; border-radius: 5px; }
+  .verdicts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .v { display: inline-flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 8px; font-size: 14px; border: 1px solid; }
+  .v.dup { border-color: rgba(248,81,73,.5); background: rgba(248,81,73,.1); color: #ffa198; }
+  .v.up { border-color: rgba(47,129,247,.5); background: rgba(47,129,247,.1); color: #a5c8ff; }
+  .v b { font-family: "JetBrains Mono"; font-weight: 600; }
+
+  .links { position: absolute; inset: 0; pointer-events: none; }
+  .tag { font: 700 15px "IBM Plex Sans", sans-serif; }
+  .tag-sub { font: 500 13px "IBM Plex Sans", sans-serif; }
+
+  /* chrome */
+  .nav { position: fixed; right: 18px; top: 14px; display: flex; gap: 8px; align-items: center; z-index: 5; font: 500 13px "JetBrains Mono", monospace; color: var(--muted); }
+  .nav button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(10,10,16,.6); color: var(--ink); cursor: pointer; font-size: 15px; }
+  .nav button:hover { border-color: var(--magenta); }
+  .nav button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .num { position: absolute; left: 72px; bottom: 26px; font: 500 13px "JetBrains Mono", monospace; color: rgba(245,242,255,.45); letter-spacing: .1em; }
+</style>
+
+<div class="viewport"><div class="deck" id="deck">
+
+  <!-- 1 · PROBLEM -->
+  <section class="slide s1 on" aria-label="The problem">
+    <div class="bg" role="img" aria-label="Halftone illustration of a woman firing a slop cannon, captioned: Speed matters (so know where to point your slop cannon). Credit @clairevo."></div>
+    <div class="shade"></div>
+    <div class="copy">
+      <div class="eyebrow">The problem</div>
+      <h1>Big companies build the same thing twice. <em class="serif">Now at AI speed.</em></h1>
+      <ul>
+        <li><span>Teams can't see each other's work: the churn model, the recommender, the A/B readout get <b>rebuilt one org over</b>.</span></li>
+        <li><span>AI multiplied velocity: <b>more PRs, more systems</b>, and PMs can no longer keep track of all of it.</span></li>
+        <li><span>The bill: duplicate pipelines that drift apart, and <b>nobody knows who to ask</b>.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 2 · ARCHITECTURE -->
+  <section class="slide s2" aria-label="How it works">
+    <div class="head">
+      <div><div class="eyebrow">How it works</div><h2>An always-on agent <em class="serif">reads every PR</em></h2></div>
+      <p>OpenClaw runs the watcher every 30 s on local Qwen3-Coder-Next. Each folder becomes topics; new code is matched against all of main; matches are judged, explained and posted on the PR.</p>
+    </div>
+    <div class="diagram"><svg viewBox="0 0 1100 580" preserveAspectRatio="xMidYMid meet" role="img" aria-label="OpenClaw's scheduler runs a watcher tick every 30 seconds under a lock. The tick polls GitHub for open and merged PRs, queues new commits, extracts topics and candidates, asks the classifier, has the OpenClaw watcher agent write a note and posts it as an [oc] comment on the PR. Merges re-index main reusing cached topic sets. The dashboard reads the SQLite database and drives real PR actions and resets.">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- row 0 -->
+        <rect class="box" x="20" y="30" width="170" height="80" rx="8"/>
+        <text class="t" x="105" y="58" text-anchor="middle">GitHub</text>
+        <text class="m" x="105" y="76" text-anchor="middle">slopulant-monorepo</text>
+        <text class="s" x="105" y="92" text-anchor="middle">main · PRs · comments</text>
+
+        <rect class="box" x="460" y="30" width="170" height="80" rx="8"/>
+        <text class="t" x="545" y="56" text-anchor="middle">Watcher tick</text>
+        <text class="s" x="545" y="74" text-anchor="middle">poll open + merged PRs</text>
+        <text class="s" x="545" y="90" text-anchor="middle">queue new commits</text>
+
+        <rect class="box store" x="680" y="30" width="170" height="80" rx="8"/>
+        <text class="t" x="765" y="56" text-anchor="middle">PR queue</text>
+        <text class="s" x="765" y="74" text-anchor="middle">claimed item by item</text>
+        <text class="s" x="765" y="90" text-anchor="middle">crashed runs retried</text>
+
+        <rect class="box llm" x="900" y="30" width="180" height="80" rx="8"/>
+        <text class="t" x="990" y="56" text-anchor="middle">Topics → candidates</text>
+        <text class="s" x="990" y="74" text-anchor="middle">per touched folder</text>
+        <text class="s" x="990" y="90" text-anchor="middle">figures 2 and 3</text>
+
+        <!-- row 1 -->
+        <rect class="box" x="20" y="170" width="170" height="80" rx="8"/>
+        <text class="t" x="105" y="196" text-anchor="middle">Dashboard</text>
+        <text class="s" x="105" y="214" text-anchor="middle">Chrome on the laptop</text>
+        <text class="m" x="105" y="230" text-anchor="middle">SSH tunnel :8765</text>
+
+        <rect class="box" x="240" y="170" width="170" height="80" rx="8"/>
+        <text class="t" x="325" y="196" text-anchor="middle">Demo actions</text>
+        <text class="s" x="325" y="214" text-anchor="middle">open · merge · close</text>
+        <text class="s" x="325" y="230" text-anchor="middle">reset · model switch</text>
+
+        <rect class="box" x="460" y="170" width="170" height="80" rx="8" style="stroke:var(--accent, #2f5d8a);stroke-width:2"/>
+        <text class="t" x="545" y="196" text-anchor="middle">OpenClaw scheduler</text>
+        <text class="s" x="545" y="214" text-anchor="middle">job every 30 s</text>
+        <text class="s" x="545" y="230" text-anchor="middle">lock: ticks never overlap</text>
+
+        <rect class="box store" x="680" y="170" width="170" height="80" rx="8"/>
+        <text class="t" x="765" y="196" text-anchor="middle">SQLite</text>
+        <text class="s" x="765" y="214" text-anchor="middle">topics · scores · verdicts</text>
+        <text class="s" x="765" y="230" text-anchor="middle">alerts · events</text>
+
+        <rect class="box llm" x="900" y="170" width="180" height="80" rx="8"/>
+        <text class="t" x="990" y="196" text-anchor="middle">Classifier</text>
+        <text class="s" x="990" y="214" text-anchor="middle">relation + confidence</text>
+        <text class="s" x="990" y="230" text-anchor="middle">dummy LLM → CLM later</text>
+
+        <!-- row 2 -->
+        <rect class="box" x="680" y="310" width="170" height="80" rx="8"/>
+        <text class="t" x="765" y="336" text-anchor="middle">Re-index main</text>
+        <text class="s" x="765" y="354" text-anchor="middle">after a merge: topic sets</text>
+        <text class="s" x="765" y="370" text-anchor="middle">reused by git tree sha</text>
+
+        <rect class="box llm" x="900" y="310" width="180" height="80" rx="8" style="stroke-width:2"/>
+        <text class="t" x="990" y="336" text-anchor="middle">OpenClaw agent</text>
+        <text class="m" x="990" y="354" text-anchor="middle">watcher</text>
+        <text class="s" x="990" y="370" text-anchor="middle">writes the note to the author</text>
+
+        <!-- row 3 -->
+        <rect class="box llm" x="460" y="450" width="170" height="80" rx="8"/>
+        <text class="t" x="545" y="476" text-anchor="middle">LLM profiles</text>
+        <text class="s" x="545" y="494" text-anchor="middle">Ollama Coder-Next Q6</text>
+        <text class="s" x="545" y="510" text-anchor="middle">or OpenRouter bf16</text>
+
+        <rect class="box" x="900" y="450" width="180" height="80" rx="8"/>
+        <text class="t" x="990" y="476" text-anchor="middle">[oc] PR comment</text>
+        <text class="s" x="990" y="494" text-anchor="middle">links · owners · verdicts</text>
+        <text class="s" x="990" y="510" text-anchor="middle">edited on every push</text>
+
+        <!-- edges -->
+        <path class="edge" d="M190,62 H458" marker-end="url(#a1)"/>
+        <text class="lbl" x="324" y="55" text-anchor="middle">open + merged PRs</text>
+        <path class="edge" d="M630,70 H678" marker-end="url(#a1)"/>
+        <text class="lbl" x="654" y="63" text-anchor="middle">new</text>
+        <path class="edge" d="M850,70 H898" marker-end="url(#a1)"/>
+        <text class="lbl" x="874" y="63" text-anchor="middle">next</text>
+        <path class="edge" d="M545,170 V112" marker-end="url(#a1)"/>
+        <text class="lbl" x="553" y="146">runs 1 tick</text>
+        <path class="edge" d="M990,110 V168" marker-end="url(#a1)"/>
+        <text class="lbl" x="998" y="146">each candidate</text>
+        <path class="edge" d="M990,250 V308" marker-end="url(#a1)"/>
+        <text class="lbl" x="998" y="286">findings</text>
+        <path class="edge" d="M990,390 V448" marker-end="url(#a1)"/>
+        <text class="lbl" x="998" y="426">note</text>
+        <path class="edge" d="M990,530 V556 H10 V80 H18" marker-end="url(#a1)"/>
+        <text class="lbl" x="770" y="550" text-anchor="middle">post / edit comment on the PR</text>
+        <path class="edge" d="M898,210 H852" marker-end="url(#a1)"/>
+        <text class="lbl" x="875" y="203" text-anchor="middle">store</text>
+        <!-- merge path -->
+        <path class="edge" d="M630,100 H655 V350 H678" marker-end="url(#a1)"/>
+        <text class="lbl" x="662" y="335">merge</text>
+        <path class="edge" d="M765,310 V252" marker-end="url(#a1)"/>
+        <!-- dashboard -->
+        <path class="edge" d="M190,210 H238" marker-end="url(#a1)"/>
+        <path class="edge" d="M325,170 V140 H120 V112" marker-end="url(#a1)"/>
+        <text class="lbl" x="222" y="134" text-anchor="middle">GitHub API · force-push on reset</text>
+        <path class="edge" d="M105,250 V285 H765 V252" marker-end="url(#a1)"/>
+        <text class="lbl" x="430" y="279" text-anchor="middle">reads (every 4 s)</text>
+        <!-- llm usage -->
+        <path class="edge faint" d="M630,490 H700 V410 H990 V392"/>
+        <text class="lbl" x="706" y="430">used by topics, classifier</text>
+      </svg></div>
+  </section>
+
+  <!-- 3 · EXAMPLE -->
+  <section class="slide s3" aria-label="Example: PR 9">
+    <div class="head">
+      <div class="eyebrow">A real catch · PR #9</div>
+      <h2>Nadia's new SEO titles tool <em class="serif">already exists</em>, two teams over</h2>
+    </div>
+
+    <div class="gh pr">
+      <div class="bar"><span class="state open">⟟ Open</span><span class="title">Generate SEO titles for PDPs <span>#9</span></span></div>
+      <div class="sub" style="padding:8px 16px;border-bottom:1px solid var(--gh-border)"><b>Nadia Karimi</b> wants to merge 1 commit into <b>main</b> from <b>arjun/seo-titles</b></div>
+      <div class="file"><span class="plus">+179</span> seo_titles/make_titles.py</div>
+      <div class="code">
+        <div class="ln add hlb" id="pr-attrs"><span class="n">58</span><span class="g">+</span><span>ATTRS_SQL = <span class="str">"SELECT … FROM catalog.product_attributes"</span></span></div>
+        <div class="ln add"><span class="n">59</span><span class="g">+</span><span>OUT_TABLE = <span class="str">"content.pdp_titles"</span></span></div>
+        <div class="gap">⋯</div>
+        <div class="ln add hl" id="pr-fn"><span class="n">64</span><span class="g">+</span><span><span class="k">def</span> <span class="f">strip_promo</span>(text):</span></div>
+        <div class="ln add hl"><span class="n">67</span><span class="g">+</span><span>    cleaned = PROMO_RE.sub(<span class="str">" "</span>, text)</span></div>
+        <div class="ln add hl"><span class="n">68</span><span class="g">+</span><span>    cleaned = re.sub(<span class="str">r"\s*[-|:,]\s*(?=[-|:,]|$)"</span>, <span class="str">""</span>, cleaned)</span></div>
+        <div class="ln add hl"><span class="n">69</span><span class="g">+</span><span>    <span class="k">return</span> re.sub(<span class="str">r"\s{2,}"</span>, <span class="str">" "</span>, cleaned).strip(<span class="str">" -|:,"</span>)</span></div>
+      </div>
+    </div>
+
+    <div class="gh main1">
+      <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">title_rewriter/ <span>· SEO titles from attributes</span></span></div>
+      <div class="file">rewrite_titles.py <span class="owner">owner: <b style="color:var(--gh-text)">Sofia Brandt</b></span></div>
+      <div class="code">
+        <div class="ln hl" id="main-fn"><span class="n">57</span><span class="g"></span><span><span class="k">def</span> <span class="f">strip_noise</span>(text: <span class="nb">str</span>) -&gt; <span class="nb">str</span>:</span></div>
+        <div class="ln"><span class="n">58</span><span class="g"></span><span>    <span class="c">"""Remove merchant noise like '!!!', 'SALE'..."""</span></span></div>
+        <div class="ln hl"><span class="n">59</span><span class="g"></span><span>    text = NOISE_RE.sub(<span class="str">" "</span>, text <span class="k">or</span> <span class="str">""</span>)</span></div>
+        <div class="ln hl"><span class="n">60</span><span class="g"></span><span>    text = re.sub(<span class="str">r"\s*([,|-])\s*(?=[,|-]|$)"</span>, <span class="str">""</span>, text)</span></div>
+        <div class="ln hl"><span class="n">61</span><span class="g"></span><span>    <span class="k">return</span> re.sub(<span class="str">r"\s{2,}"</span>, <span class="str">" "</span>, text).strip(<span class="str">" ,-|"</span>)</span></div>
+      </div>
+    </div>
+
+    <div class="gh main2">
+      <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">attribute_extraction/ <span>· attributes from text</span></span></div>
+      <div class="file" style="border-bottom:0" id="main-attrs">writes <span style="color:#a5d6ff">catalog.product_attributes</span> <span class="owner">owner: <b style="color:var(--gh-text)">Sofia Brandt</b></span></div>
+    </div>
+
+    <div class="gh oc">
+      <div class="bar"><span class="avatar">oc</span><span><b>slopulant-watcher</b> <span class="bot">bot</span> <span class="sub">commented on #9 · 71 s after it opened</span></span></div>
+      <div class="body">
+        <div>Hi Nadia! Your <code>seo_titles</code> PR looks close to Sofia Brandt's <code>title_rewriter</code>, and it reads from <code>attribute_extraction</code>. Sync with Sofia: is this a replacement or an extension?</div>
+        <div class="verdicts">
+          <span class="v dup">🟥 <b>title_rewriter</b> · partial duplicate · 0.85</span>
+          <span class="v up">🟦 <b>attribute_extraction</b> · reads its output · 0.95</span>
+        </div>
+      </div>
+    </div>
+
+    <svg class="links" viewBox="0 0 1600 900" aria-hidden="true">
+      <defs>
+        <marker id="am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff3ec8"/></marker>
+        <marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2f81f7"/></marker>
+      </defs>
+      <path id="link-dup" d="" fill="none" stroke="#ff3ec8" stroke-width="3" marker-end="url(#am)"/>
+      <path id="link-up" d="" fill="none" stroke="#2f81f7" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#ab)"/>
+      <g id="lab-dup"><rect rx="8" fill="#1a0a16" stroke="#ff3ec8"/><text class="tag" fill="#ff8be0">same job</text><text class="tag-sub" fill="#d9a9cc">topic match 0.53</text></g>
+      <g id="lab-up"><rect rx="8" fill="#0a1426" stroke="#2f81f7"/><text class="tag" fill="#a5c8ff">reads its table</text><text class="tag-sub" fill="#8fb0de">upstream</text></g>
+    </svg>
+  </section>
+
+</div></div>
+
+<div class="nav"><span id="count">1 / 3</span><button id="prev" aria-label="Previous slide">←</button><button id="next" aria-label="Next slide">→</button></div>
+
+<script>
+  const deck = document.getElementById("deck");
+  const slides = [...document.querySelectorAll(".slide")];
+  let i = 0;
+  function fit() {
+    const s = Math.min(innerWidth / 1600, innerHeight / 900);
+    deck.style.transform = `scale(${s})`;
+  }
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((el, k) => el.classList.toggle("on", k === i));
+    document.getElementById("count").textContent = `${i + 1} / ${slides.length}`;
+    try { history.replaceState(null, "", "#" + (i + 1)); } catch {}
+    if (slides[i].classList.contains("s3")) requestAnimationFrame(drawLinks);
+  }
+  // arrows on slide 3 are computed from the cards' real positions (stage coordinates)
+  function box(id) {
+    const el = document.getElementById(id), stage = deck.getBoundingClientRect(), r = el.getBoundingClientRect();
+    const k = 1600 / stage.width;
+    return {x: (r.left - stage.left) * k, y: (r.top - stage.top) * k, w: r.width * k, h: r.height * k};
+  }
+  function label(id, x, y) {
+    const g = document.getElementById(id), [rect, t1, t2] = g.children;
+    t1.setAttribute("x", x + 14); t1.setAttribute("y", y + 22);
+    t2.setAttribute("x", x + 14); t2.setAttribute("y", y + 40);
+    const w = Math.max(t1.getComputedTextLength(), t2.getComputedTextLength()) + 28;
+    rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", w); rect.setAttribute("height", 52);
+  }
+  function drawLinks() {
+    const a = box("pr-fn"), b = box("main-fn"), c = box("pr-attrs"), d = box("main-attrs");
+    const ax = a.x + a.w + 6, ay = a.y + a.h * 2, bx = b.x - 8, by = b.y + b.h * 2;
+    document.getElementById("link-dup").setAttribute("d", `M${ax},${ay} C${ax + 90},${ay} ${bx - 90},${by} ${bx},${by}`);
+    label("lab-dup", (ax + bx) / 2 - 66, Math.min(ay, by) - 70);
+    const cx = c.x + c.w + 6, cy = c.y + c.h / 2, dx = d.x - 8, dy = d.y + d.h / 2;
+    document.getElementById("link-up").setAttribute("d", `M${cx},${cy} C${cx + 60},${cy + 40} ${dx - 160},${dy} ${dx},${dy}`);
+    label("lab-up", dx - 170, dy + 18);
+  }
+  addEventListener("resize", () => { fit(); if (slides[i].classList.contains("s3")) drawLinks(); });
+  addEventListener("keydown", (e) => {
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    if (e.key === "Home") show(0); if (e.key === "End") show(slides.length - 1);
+  });
+  document.getElementById("next").onclick = () => show(i + 1);
+  document.getElementById("prev").onclick = () => show(i - 1);
+  fit();
+  const start = parseInt(location.hash.slice(1), 10);
+  show(Number.isFinite(start) ? start - 1 : 0);
+  document.fonts?.ready.then(() => { if (slides[i].classList.contains("s3")) drawLinks(); });
+</script>
