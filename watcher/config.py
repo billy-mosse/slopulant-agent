@@ -31,6 +31,9 @@ LLM_API_KEY = _api_key() if "openrouter.ai" in LLM_BASE_URL else os.environ.get(
 LLM_CACHE = os.environ.get("LLM_CACHE", "1") != "0"
 LLM_CACHE_PATH = Path(os.environ.get("LLM_CACHE_PATH", ROOT / "data" / "llm_cache.json"))
 
+# tqdm progress bars (with ETA) for indexing and scoring; PROGRESS=0 to hide.
+PROGRESS = os.environ.get("PROGRESS", "1") != "0"
+
 # Parallel LLM requests (OpenRouter and vLLM both handle concurrent requests well).
 LLM_CONCURRENCY = int(os.environ.get("LLM_CONCURRENCY", "8"))
 

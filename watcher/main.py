@@ -14,6 +14,8 @@ import logging
 import time
 import traceback
 
+from tqdm import tqdm
+
 from . import cards, config, db, github, gitrepo
 
 log = logging.getLogger("watcher")
@@ -62,7 +64,8 @@ def score_pr(conn, base_sha, pr_number, head_sha):
 def tick(conn):
     base_sha = index_base(conn)
     poll(conn, base_sha)
-    for item in db.pending(conn):
+    pending = db.pending(conn)
+    for item in tqdm(pending, desc="scoring PRs", unit="pr", disable=len(pending) < 2 or not config.PROGRESS):
         try:
             score_pr(conn, base_sha, item["pr_number"], item["head_sha"])
             db.mark(conn, item, "done")

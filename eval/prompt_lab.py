@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 
 from watcher import cards, config, keywords
 
@@ -255,7 +256,8 @@ class Cache:
 
         if missing:
             with ThreadPoolExecutor(config.LLM_CONCURRENCY) as pool:
-                list(pool.map(fetch, missing))
+                list(tqdm(pool.map(fetch, missing), total=len(missing), desc=f"LLM: {prompt_name}", unit="call",
+                          disable=not config.PROGRESS))
             CACHE.write_text(json.dumps(self.data))
         return {n: self.data[key(n)] for n in docs}
 

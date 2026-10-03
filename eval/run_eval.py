@@ -16,6 +16,7 @@ PR folder's candidate set for several K and compares it with eval/cases.json:
 """
 import json
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -48,9 +49,12 @@ def candidates(rows, k, floor):
 
 def main():
     quiet = "--quiet" in sys.argv
+    started = time.time()
+    print(f"LLM {config.LLM_MODEL} @ {config.LLM_BASE_URL} | cache {'on' if config.LLM_CACHE else 'off'}", flush=True)
     conn = db.connect()
     gitrepo.ensure_clone()
     tick(conn)
+    scored_at = time.time()
     prs = open_prs_by_branch()
 
     folders, missing = [], []  # (label, rows, truth)
@@ -114,6 +118,7 @@ def main():
             print("  " + m)
     if missing:
         print("\nnot evaluated:", ", ".join(missing))
+    print(f"\nelapsed: {scored_at - started:.0f}s indexing + scoring, {time.time() - started:.0f}s total")
 
 
 if __name__ == "__main__":

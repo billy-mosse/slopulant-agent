@@ -11,10 +11,11 @@ import ast
 import json
 import re
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import requests
+from tqdm import tqdm
 
 from . import config, db, gitrepo, keywords, llm_cache
 
@@ -144,11 +145,15 @@ def ensure_cards(conn, sha, folders):
     out = {f: db.get_card(conn, t) for f, t in folders.items()}
     missing = [f for f, card in out.items() if card is None]
     if missing:
-        with ThreadPoolExecutor(config.LLM_CONCURRENCY) as pool:
-            built = pool.map(lambda f: build_card(f, gitrepo.folder_files(sha, f)), missing)
-            for f, c in zip(missing, built):
-                db.put_card(conn, folders[f], c)
+        with ThreadPoolExecutor(config.LLM_CONCURRENCY) as pool, tqdm(
+            total=len(missing), desc="describing folders", unit="folder", disable=len(missing) < 2 or not config.PROGRESS
+        ) as bar:
+            futures = {pool.submit(lambda f=f: build_card(f, gitrepo.folder_files(sha, f))): f for f in missing}
+            for fut in as_completed(futures):  # DB writes stay on this thread
+                f = futures[fut]
+                db.put_card(conn, folders[f], fut.result())
                 out[f] = db.get_card(conn, folders[f])
+                bar.update()
     return out
 
 
