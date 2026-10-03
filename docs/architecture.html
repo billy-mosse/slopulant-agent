@@ -1,0 +1,334 @@
+<title>Slopulant Watcher Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #5b6474; --line: #c9d0db;
+    --llm: #2f5d8a; --llm-soft: #e6eef7; --store: #7a5a1f; --store-soft: #f6efe2; --future: #8a93a3;
+    --hit: #1f7a4d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #12161c; --panel: #191e26; --ink: #e4e8ee; --muted: #9aa3b2; --line: #343c49;
+      --llm: #8db6e3; --llm-soft: #1d2a3a; --store: #d9b36c; --store-soft: #2b2416; --future: #7b8494;
+      --hit: #5fc792;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #12161c; --panel: #191e26; --ink: #e4e8ee; --muted: #9aa3b2; --line: #343c49;
+    --llm: #8db6e3; --llm-soft: #1d2a3a; --store: #d9b36c; --store-soft: #2b2416; --future: #7b8494;
+    --hit: #5fc792;
+  }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 15px/1.55 "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    padding-inline: 16px; padding-block: 28px 56px;
+  }
+  main { max-width: 1120px; margin: 0 auto; display: grid; gap: 32px; }
+  h1 { font-size: 26px; font-weight: 600; margin: 0; text-wrap: balance; }
+  h2 { font-size: 17px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
+  .lede { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 13px; }
+  section { display: grid; gap: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 22px; height: 12px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--panel); }
+  .sw.llm { border-color: var(--llm); background: var(--llm-soft); }
+  .sw.store { border-color: var(--store); background: var(--store-soft); }
+  .sw.future { border-style: dashed; border-color: var(--future); }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .scroll { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 760px; height: auto; color: var(--ink); }
+  figcaption { color: var(--muted); font-size: 13.5px; margin-top: 8px; max-width: 90ch; }
+
+  /* diagram vocabulary */
+  .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+  .box.llm { fill: var(--llm-soft); stroke: var(--llm); }
+  .box.store { fill: var(--store-soft); stroke: var(--store); }
+  .box.future { fill: none; stroke: var(--future); stroke-dasharray: 6 4; }
+  .t { fill: var(--ink); font: 600 13px "IBM Plex Sans", sans-serif; }
+  .s { fill: var(--muted); font: 400 11.5px "IBM Plex Sans", sans-serif; }
+  .m { fill: var(--muted); font: 400 11px "IBM Plex Mono", monospace; }
+  .future-t { fill: var(--future); }
+  .edge { fill: none; stroke: currentColor; stroke-width: 1.4; }
+  .edge.llm { stroke: var(--llm); }
+  .edge.hit { stroke: var(--hit); stroke-width: 3; }
+  .edge.faint { stroke: var(--line); }
+  .edge.future { stroke: var(--future); stroke-dasharray: 5 4; }
+  .lbl { fill: var(--muted); font: 500 11px "IBM Plex Sans", sans-serif; }
+  .lbl.hit { fill: var(--hit); }
+  .pill { fill: var(--llm-soft); stroke: var(--llm); stroke-width: 1.2; }
+
+  .stores { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .stores div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; }
+  .stores b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .stores p { margin: 0; color: var(--muted); }
+</style>
+
+<main>
+  <header>
+    <h1>Slopulant watcher architecture</h1>
+    <p class="lede">How a pull request on <code>slopulant-monorepo</code> turns into a short list of
+      systems its author should know about: duplicates of what they're building, and systems they read
+      from or feed into. Everything below runs on one local LLM (Qwen3-Coder-Next) plus a small
+      embedding model.</p>
+  </header>
+
+  <div class="legend" aria-label="Legend">
+    <span><i class="sw"></i>step in our code</span>
+    <span><i class="sw llm"></i>LLM call</span>
+    <span><i class="sw store"></i>stored state</span>
+    <span><i class="sw future"></i>not built yet</span>
+  </div>
+
+  <!-- 1. End to end ------------------------------------------------------------ -->
+  <section>
+    <h2>1 · From a pushed commit to candidates</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1100 450" role="img" aria-label="The watcher polls GitHub for PRs, queues each new commit, extracts topics for the folders the PR touches, compares them with cached topics of every folder on main, and writes candidates that the demo UI reads and that the classifier and Slack alert will consume.">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="a1f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#8a93a3"/>
+          </marker>
+        </defs>
+
+        <!-- row 0 -->
+        <rect class="box" x="20" y="40" width="150" height="70" rx="8"/>
+        <text class="t" x="95" y="68" text-anchor="middle">GitHub</text>
+        <text class="m" x="95" y="86" text-anchor="middle">slopulant-monorepo</text>
+        <text class="s" x="95" y="101" text-anchor="middle">main + open PRs</text>
+
+        <rect class="box" x="220" y="40" width="150" height="70" rx="8"/>
+        <text class="t" x="295" y="68" text-anchor="middle">Poll open PRs</text>
+        <text class="s" x="295" y="86" text-anchor="middle">every 30 s</text>
+        <text class="s" x="295" y="101" text-anchor="middle">ETag: idle polls are free</text>
+
+        <rect class="box store" x="420" y="40" width="170" height="70" rx="8"/>
+        <text class="t" x="505" y="68" text-anchor="middle">PR queue</text>
+        <text class="m" x="505" y="86" text-anchor="middle">(PR, head, base,</text>
+        <text class="m" x="505" y="101" text-anchor="middle">version)</text>
+
+        <rect class="box" x="640" y="40" width="170" height="70" rx="8"/>
+        <text class="t" x="725" y="68" text-anchor="middle">Score PR</text>
+        <text class="s" x="725" y="86" text-anchor="middle">each folder it touches</text>
+        <text class="s" x="725" y="101" text-anchor="middle">vs every folder on main</text>
+
+        <rect class="box store" x="860" y="40" width="190" height="70" rx="8"/>
+        <text class="t" x="955" y="68" text-anchor="middle">Candidates</text>
+        <text class="m" x="955" y="86" text-anchor="middle">scores table</text>
+        <text class="s" x="955" y="101" text-anchor="middle">with evidence per match</text>
+
+        <!-- row 1 -->
+        <rect class="box" x="220" y="190" width="150" height="70" rx="8"/>
+        <text class="t" x="295" y="218" text-anchor="middle">Index main</text>
+        <text class="s" x="295" y="236" text-anchor="middle">only folders whose</text>
+        <text class="s" x="295" y="251" text-anchor="middle">git tree changed</text>
+
+        <rect class="box llm" x="420" y="190" width="170" height="70" rx="8"/>
+        <text class="t" x="505" y="218" text-anchor="middle">Folder → topics</text>
+        <text class="s" x="505" y="236" text-anchor="middle">1..N per folder</text>
+        <text class="s" x="505" y="251" text-anchor="middle">see figure 2</text>
+
+        <rect class="box store" x="640" y="190" width="170" height="70" rx="8"/>
+        <text class="t" x="725" y="218" text-anchor="middle">Topics cache</text>
+        <text class="m" x="725" y="236" text-anchor="middle">key: git tree sha</text>
+        <text class="m" x="725" y="251" text-anchor="middle">+ model + version</text>
+
+        <rect class="box" x="860" y="190" width="190" height="70" rx="8"/>
+        <text class="t" x="955" y="218" text-anchor="middle">Demo UI</text>
+        <text class="m" x="955" y="236" text-anchor="middle">localhost:8765</text>
+        <text class="s" x="955" y="251" text-anchor="middle">PRs · try it · index</text>
+
+        <!-- row 2 -->
+        <rect class="box store" x="220" y="340" width="150" height="70" rx="8"/>
+        <text class="t" x="295" y="368" text-anchor="middle">LLM response cache</text>
+        <text class="m" x="295" y="386" text-anchor="middle">data/llm_cache.json</text>
+        <text class="s" x="295" y="401" text-anchor="middle">off for the hackathon</text>
+
+        <rect class="box llm" x="420" y="340" width="170" height="70" rx="8"/>
+        <text class="t" x="505" y="368" text-anchor="middle">Qwen3-Coder-Next</text>
+        <text class="s" x="505" y="386" text-anchor="middle">OpenRouter (dev)</text>
+        <text class="s" x="505" y="401" text-anchor="middle">Ollama on GB10 (event)</text>
+
+        <rect class="box future" x="860" y="340" width="190" height="70" rx="8"/>
+        <text class="t future-t" x="955" y="368" text-anchor="middle">CLM classifier → alert</text>
+        <text class="s" x="955" y="386" text-anchor="middle">relation + confidence</text>
+        <text class="s" x="955" y="401" text-anchor="middle">Slack / OpenClaw → owner</text>
+
+        <!-- edges, row 0 -->
+        <path class="edge" d="M170,75 H218" marker-end="url(#a1)"/>
+        <text class="lbl" x="194" y="68" text-anchor="middle">PRs</text>
+        <path class="edge" d="M370,75 H418" marker-end="url(#a1)"/>
+        <text class="lbl" x="394" y="68" text-anchor="middle">new</text>
+        <path class="edge" d="M590,75 H638" marker-end="url(#a1)"/>
+        <text class="lbl" x="614" y="68" text-anchor="middle">next</text>
+        <path class="edge" d="M810,75 H858" marker-end="url(#a1)"/>
+        <text class="lbl" x="834" y="68" text-anchor="middle">writes</text>
+
+        <!-- main moved -->
+        <path class="edge" d="M95,110 V225 H218" marker-end="url(#a1)"/>
+        <text class="lbl" x="103" y="170">main moved</text>
+        <path class="edge" d="M370,225 H418" marker-end="url(#a1)"/>
+        <text class="lbl" x="394" y="218" text-anchor="middle">folder</text>
+        <path class="edge" d="M590,225 H638" marker-end="url(#a1)"/>
+        <text class="lbl" x="614" y="218" text-anchor="middle">store</text>
+
+        <!-- PR folder goes through the same topic extraction -->
+        <path class="edge" d="M680,110 V150 H530 V188" marker-end="url(#a1)"/>
+        <text class="lbl" x="605" y="144" text-anchor="middle">PR folder at its head</text>
+        <!-- scoring reads the cache -->
+        <path class="edge" d="M770,190 V112" marker-end="url(#a1)"/>
+        <text class="lbl" x="778" y="160">main's topics</text>
+
+        <!-- LLM -->
+        <path class="edge llm" d="M505,260 V338" marker-end="url(#a1)"/>
+        <text class="lbl" x="513" y="295">2 calls / chunk</text>
+        <text class="lbl" x="513" y="310">+1 merge if chunked</text>
+        <path class="edge" d="M418,375 H372" marker-end="url(#a1)"/>
+        <text class="lbl" x="395" y="368" text-anchor="middle">hit?</text>
+
+        <!-- consumers -->
+        <path class="edge" d="M955,110 V188" marker-end="url(#a1)"/>
+        <text class="lbl" x="963" y="155">reads</text>
+        <path class="edge future" d="M1050,75 H1078 V375 H1052" marker-end="url(#a1f)"/>
+        <text class="lbl" x="1072" y="300" text-anchor="end">candidates</text>
+      </svg>
+      </div>
+      <figcaption>Main is indexed once and only re-processed folder by folder when its git tree changes;
+        a PR re-runs only for the folders it touches. Both sides go through the same topic extraction, so
+        their topics are directly comparable. A PR is re-scored on every push, when main moves, or when
+        the prompts or scoring version change.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 2. Folder -> topics --------------------------------------------------- -->
+  <section>
+    <h2>2 · Inside "folder → topics"</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1100 290" role="img" aria-label="Folder files are chunked if over 40 thousand characters; each chunk gets a topics pass and a keywords pass from the LLM in parallel; chunk topics are merged by the LLM while tables and keywords are unioned in code; topics that write no tables are folded into their producer; descriptions are embedded.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <rect class="box" x="20" y="95" width="130" height="80" rx="8"/>
+        <text class="t" x="85" y="125" text-anchor="middle">Folder files</text>
+        <text class="s" x="85" y="143" text-anchor="middle">at a git tree sha</text>
+        <text class="s" x="85" y="158" text-anchor="middle">code + README</text>
+
+        <rect class="box" x="190" y="95" width="160" height="80" rx="8"/>
+        <text class="t" x="270" y="120" text-anchor="middle">Chunk</text>
+        <text class="s" x="270" y="138" text-anchor="middle">only if &gt; 40k chars</text>
+        <text class="s" x="270" y="153" text-anchor="middle">split at files, then defs</text>
+        <text class="s" x="270" y="168" text-anchor="middle">README added to each</text>
+
+        <!-- per chunk, parallel -->
+        <rect class="box" x="390" y="30" width="210" height="220" rx="10" style="fill:none;stroke-dasharray:3 3"/>
+        <text class="lbl" x="495" y="22" text-anchor="middle">per chunk, in parallel</text>
+        <rect class="box llm" x="405" y="45" width="180" height="85" rx="8"/>
+        <text class="t" x="495" y="70" text-anchor="middle">Topics pass</text>
+        <text class="s" x="495" y="88" text-anchor="middle">split into 1..N topics:</text>
+        <text class="s" x="495" y="103" text-anchor="middle">name, description,</text>
+        <text class="s" x="495" y="118" text-anchor="middle">tables read / written</text>
+        <rect class="box llm" x="405" y="150" width="180" height="85" rx="8"/>
+        <text class="t" x="495" y="175" text-anchor="middle">Keywords pass</text>
+        <text class="s" x="495" y="193" text-anchor="middle">10-15 per topic</text>
+        <text class="s" x="495" y="208" text-anchor="middle">generic terms removed</text>
+        <text class="s" x="495" y="223" text-anchor="middle">in code</text>
+        <path class="edge llm" d="M495,130 V148" marker-end="url(#a2)"/>
+
+        <rect class="box llm" x="640" y="95" width="160" height="80" rx="8"/>
+        <text class="t" x="720" y="120" text-anchor="middle">Merge chunks</text>
+        <text class="s" x="720" y="138" text-anchor="middle">LLM groups + rewrites</text>
+        <text class="s" x="720" y="153" text-anchor="middle">code unions tables</text>
+        <text class="s" x="720" y="168" text-anchor="middle">and keywords</text>
+
+        <rect class="box" x="840" y="95" width="120" height="80" rx="8"/>
+        <text class="t" x="900" y="120" text-anchor="middle">Fold helpers</text>
+        <text class="s" x="900" y="138" text-anchor="middle">no tables written</text>
+        <text class="s" x="900" y="153" text-anchor="middle">→ join the topic</text>
+        <text class="s" x="900" y="168" text-anchor="middle">they serve</text>
+
+        <rect class="box store" x="990" y="95" width="95" height="80" rx="8"/>
+        <text class="t" x="1037" y="122" text-anchor="middle">Topics</text>
+        <text class="s" x="1037" y="140" text-anchor="middle">descriptions</text>
+        <text class="s" x="1037" y="155" text-anchor="middle">embedded</text>
+        <text class="m" x="1037" y="169" text-anchor="middle">MiniLM</text>
+
+        <path class="edge" d="M150,135 H188" marker-end="url(#a2)"/>
+        <path class="edge" d="M350,135 H370 V88 H403" marker-end="url(#a2)"/>
+        <path class="edge" d="M585,88 H615 V135 H638" marker-end="url(#a2)"/>
+        <path class="edge" d="M585,192 H615 V135" />
+        <path class="edge" d="M800,135 H838" marker-end="url(#a2)"/>
+        <path class="edge" d="M960,135 H988" marker-end="url(#a2)"/>
+        <text class="lbl" x="720" y="196" text-anchor="middle">skipped for 1 chunk</text>
+        <text class="lbl" x="900" y="196" text-anchor="middle">deterministic</text>
+      </svg>
+      </div>
+      <figcaption>A folder can hold several systems (e.g. <code>marketing_models</code>: lookalikes, subject-line
+        scoring, coupon propensity), so it gets one topic per model, pipeline or tool. Training, features,
+        backtests and lexicons belong to the model they serve: the LLM is asked to keep them together, and a
+        topic that writes no table of its own is folded into its producer in code. In a merge the LLM decides
+        what's the same system; tables and keywords are unioned in code, so a merge never drops them.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 3. Scoring ------------------------------------------------------------ -->
+  <section>
+    <h2>3 · Comparing two folders, and what becomes a candidate</h2>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1100 250" role="img" aria-label="Every topic of the PR folder is compared with every topic of a folder on main; the best pair gives the score, the mean of description cosine and keyword TF-IDF similarity. Shared tables give upstream or downstream links. Candidates are all dataflow links plus the top 5 by score above 0.38.">
+        <rect class="box" x="20" y="30" width="200" height="190" rx="10"/>
+        <text class="t" x="120" y="55" text-anchor="middle">PR folder</text>
+        <text class="m" x="120" y="72" text-anchor="middle">growth_toolkit/</text>
+        <rect class="pill" x="45" y="95" width="150" height="34" rx="17"/>
+        <text class="s" x="120" y="116" text-anchor="middle" style="fill:var(--ink)">promo targeting</text>
+        <rect class="pill" x="45" y="160" width="150" height="34" rx="17"/>
+        <text class="s" x="120" y="181" text-anchor="middle" style="fill:var(--ink)">send windows</text>
+
+        <rect class="box" x="420" y="30" width="200" height="190" rx="10"/>
+        <text class="t" x="520" y="55" text-anchor="middle">Folder on main</text>
+        <text class="m" x="520" y="72" text-anchor="middle">email_send_time/</text>
+        <rect class="pill" x="445" y="127" width="150" height="34" rx="17"/>
+        <text class="s" x="520" y="148" text-anchor="middle" style="fill:var(--ink)">best send hour</text>
+
+        <path class="edge faint" d="M195,112 L445,144"/>
+        <path class="edge hit" d="M195,177 L445,144"/>
+        <text class="lbl hit" x="320" y="190" text-anchor="middle">best pair</text>
+
+        <rect class="box" x="670" y="30" width="410" height="190" rx="10"/>
+        <text class="t" x="690" y="58">score = ½ (description cosine + keyword TF-IDF)</text>
+        <text class="s" x="690" y="78">of the best-matching topic pair; the match shows both topic names</text>
+        <text class="t" x="690" y="112">dataflow: tables shared across any topics</text>
+        <text class="s" x="690" y="132">PR reads its table → upstream · it reads the PR's → downstream</text>
+        <text class="t" x="690" y="166">candidate if</text>
+        <text class="s" x="690" y="186">any dataflow link (always), or</text>
+        <text class="s" x="690" y="204">top 5 by score and score ≥ 0.38</text>
+      </svg>
+      </div>
+      <figcaption>With one description per folder, a PR that duplicates only one model inside a multi-model
+        folder matched weakly, because the other models diluted the description. Taking the best topic pair
+        lets that model match on its own. Function-level code similarity is still shown as evidence but
+        doesn't count toward the score: on realistic code it matches shared boilerplate.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Where things live</h2>
+    <div class="stores">
+      <div><b><code>data/watcher.db</code> (SQLite)</b><p>PR queue, folders, topics, scores, PR metadata. Derived state: safe to delete.</p></div>
+      <div><b><code>data/llm_cache.json</code></b><p>Identical LLM requests answered locally. File-locked so the demo and evals can share it.</p></div>
+      <div><b><code>eval/company_manifest.json</code></b><p>Ground truth for the mock company: every system's tables, planted duplicates, PR labels. Never seen by the watcher.</p></div>
+      <div><b><code>eval/run_eval.py</code> · <code>eval/prompt_lab.py</code></b><p>End-to-end recall@K on the test PRs; signal and prompt comparisons on ~200 queries.</p></div>
+    </div>
+  </section>
+</main>

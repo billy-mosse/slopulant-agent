@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from eval.build_cases import similarity_truth
 from eval.prompt_lab import COMPANY_REPO, folder_code, git
-from watcher import cards, config
+from watcher import config, topics
 
 OUT = Path(__file__).parent / "snippets" / "gen"
 
@@ -75,7 +75,7 @@ def generate(prompt):
     """Python source, or None if the model's answer isn't valid Python (e.g. cut off).
     Responses are cached, so retrying the same prompt wouldn't help."""
     try:
-        return clean(cards._chat(prompt, max_tokens=3000))
+        return clean(topics._chat(prompt, max_tokens=3000))
     except SyntaxError:
         return None
 

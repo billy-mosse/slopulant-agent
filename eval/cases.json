@@ -249,5 +249,44 @@
         "upstream"
       ]
     }
+  },
+  "nadia/subject-line-optimizer": {
+    "subject_line_optimizer": {
+      "email_send_time": [
+        "related"
+      ],
+      "marketing_models": [
+        "duplicate"
+      ]
+    }
+  },
+  "felix/synonym-expansion": {
+    "synonym_expansion": {
+      "query_understanding": [
+        "related"
+      ],
+      "search_experiments": [
+        "duplicate"
+      ]
+    }
+  },
+  "chen/growth-toolkit": {
+    "growth_toolkit": {
+      "customer_embeddings": [
+        "upstream"
+      ],
+      "email_send_time": [
+        "duplicate"
+      ],
+      "marketing_models": [
+        "related"
+      ],
+      "next_best_offer": [
+        "related"
+      ],
+      "promo_uplift": [
+        "duplicate"
+      ]
+    }
   }
 }

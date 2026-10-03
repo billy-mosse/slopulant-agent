@@ -30,7 +30,7 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 
-from watcher import cards, config, keywords
+from watcher import config, keywords, topics
 
 # Local checkout of the company repo (for eval only), next to this repo by default.
 COMPANY_REPO = Path(os.environ.get("COMPANY_REPO_DIR", Path(__file__).resolve().parents[2] / "slopulant-monorepo"))
@@ -250,7 +250,7 @@ class Cache:
         missing = [n for n in docs if key(n) not in self.data]
 
         def fetch(n):
-            text = cards._chat(prompt.format(folder=docs[n][0], code=docs[n][1]), max_tokens=max_tokens)
+            text = topics._chat(prompt.format(folder=docs[n][0], code=docs[n][1]), max_tokens=max_tokens)
             with self.lock:
                 self.data[key(n)] = text
 
@@ -305,8 +305,21 @@ def print_table(rows, by_group=False):
             print("    " + "  ".join(f"{g} {h}/{t}" for g, (h, t) in sorted(m["groups"].items())))
 
 
+def split_files(code):
+    """'### path' blocks (as built by corpus()) back into [(path, text)] files."""
+    parts = re.split(r"(?m)^### (.+)\n", code)
+    return [(parts[i].strip(), parts[i + 1]) for i in range(1, len(parts) - 1, 2)] or [("main.py", code)]
+
+
+def topic_entries(docs):
+    """{name: topics.build_folder(...)} for every doc; LLM calls are cached."""
+    with ThreadPoolExecutor(config.LLM_CONCURRENCY) as pool:
+        futures = {n: pool.submit(topics.build_folder, docs[n][0], split_files(docs[n][1])) for n in docs}
+        return {n: f.result() for n, f in tqdm(futures.items(), desc="topics", unit="doc", disable=not config.PROGRESS)}
+
+
 def desc_sim(texts):
-    emb = dict(zip(texts, cards.embed(list(texts.values()))))
+    emb = dict(zip(texts, topics.embed(list(texts.values()))))
     return lambda q, f: float(emb[q] @ emb[f])
 
 
@@ -326,18 +339,33 @@ def run_signals(by_group):
     d = desc_sim(desc)
     idf = keywords.TfidfIndex([kws[f] for f in main_folders])
     kw_idf = lambda q, f: idf.similarity(kws[q], kws[f])
-    kw_emb_vec = dict(zip(kws, cards.embed([", ".join(k) for k in kws.values()])))
+    kw_emb_vec = dict(zip(kws, topics.embed([", ".join(k) for k in kws.values()])))
     kw_emb = lambda q, f: float(kw_emb_vec[q] @ kw_emb_vec[f])
     kw_jac = lambda q, f: len(set(kws[q]) & set(kws[f])) / (len(set(kws[q]) | set(kws[f])) or 1)
-    funcs = {n: cards._functions([(f"x/{n}.py", code.split("\n", 1)[1]) for code in [docs[n][1]]]) for n in docs}
-    func_emb = {n: cards.embed([src for _, src in fs]) if fs else None for n, fs in funcs.items()}
+    funcs = {n: topics._functions([(f"x/{n}.py", code.split("\n", 1)[1]) for code in [docs[n][1]]]) for n in docs}
+    func_emb = {n: topics.embed([src for _, src in fs]) if fs else None for n, fs in funcs.items()}
 
     def code(q, f):
         a, b = func_emb[q], func_emb[f]
         return float((a @ b.T).max()) if a is not None and b is not None else 0.0
 
     sem = lambda q, f: (d(q, f) + kw_idf(q, f)) / 2
+    entries = topic_entries(docs)
+    tidf = keywords.TfidfIndex([t["keywords"] for f in main_folders for t in entries[f]["topics"]])
+
+    def topic_sim(q, f):  # what the watcher now does: best-matching topic pair
+        return max(
+            (float(a["embedding"] @ b["embedding"]) + tidf.similarity(a["keywords"], b["keywords"])) / 2
+            for a in entries[q]["topics"] for b in entries[f]["topics"]
+        )
+
+    multi = sum(len(entries[f]["topics"]) > 1 for f in main_folders)
+    chunked = [f for f in main_folders if entries[f]["n_chunks"] > 1]
+    print(f"topics on main: {sum(len(entries[f]['topics']) for f in main_folders)} across {len(main_folders)} folders; "
+          f"{multi} folders with >1 topic; chunked: {chunked or 'none'}")
+
     signals = {
+        "topics: best pair [in use]": topic_sim,
         "description": d,
         "code (functions)": code,
         "max(desc, code) [current]": lambda q, f: max(d(q, f), code(q, f)),

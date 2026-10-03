@@ -38,10 +38,10 @@ PROGRESS = os.environ.get("PROGRESS", "1") != "0"
 LLM_CONCURRENCY = int(os.environ.get("LLM_CONCURRENCY", "8"))
 
 # Bump when compare()/ranking logic changes: open PRs get re-scored.
-SCORING_VERSION = 4
+SCORING_VERSION = 5
 
-# Bump when the card prompts or card contents change; part of the cache key.
-CARDS_VERSION = 5
+# Bump when the topic prompts or topic contents change; part of the cache key.
+TOPICS_VERSION = 3
 
 EMBED_MODEL = os.environ.get("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
@@ -59,5 +59,10 @@ TOP_K = int(os.environ.get("TOP_K", "5"))
 # leaves 80% of unrelated systems with no candidate. Retune with eval/prompt_lab.py.
 MIN_CANDIDATE_SCORE = float(os.environ.get("MIN_CANDIDATE_SCORE", "0.38"))
 
-# Files bigger than this are skipped when describing a folder.
-MAX_FILE_BYTES = 40_000
+# Files bigger than this are skipped entirely (generated/data files).
+MAX_FILE_BYTES = 400_000
+
+# Folders with more code than this (chars) are split into chunks, topics are
+# extracted per chunk and merged. ~40k chars is ~12k tokens: comfortable inside a
+# 32k-token context with the prompt and the JSON reply.
+CHUNK_CHARS = int(os.environ.get("CHUNK_CHARS", "40000"))

@@ -60,6 +60,12 @@
   .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .chip { padding: 1px 7px; border-radius: 5px; background: var(--code-bg); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
   .arrow { color: var(--muted); }
+  .topic { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+  .topic p { margin: 0; padding: 0; }
+  .topic-name { font-weight: 650; }
+  .index-grid .topic { margin: 0 16px 12px; }
+  .index-grid .topic .chips { padding: 0; }
+  .topicmatch { color: var(--ink); font-weight: 600; }
   .chip.kw { background: var(--accent-soft); color: var(--accent); font-family: inherit; }
 
   table { width: 100%; border-collapse: collapse; }
@@ -125,7 +131,7 @@
       For each folder the PR touches, every other folder on <code>main</code> is ranked.
       <span class="tag cand">candidate</span> rows are what the next stage would receive
       (top <span id="k"></span> above <span id="floor"></span>, plus any data-flow link).
-      Score = mean of description and keyword similarity (code match shown as evidence). Data-flow links (green) are always surfaced.</p>
+      Each folder is split into topics (one per model/pipeline/tool); score = best-matching topic pair, mean of description and keyword similarity. Data-flow links (green) are always surfaced.</p>
     <div id="prs"><div class="empty">Loading…</div></div>
   </section>
 
@@ -149,8 +155,9 @@
   </section>
 
   <section id="tab-index" hidden>
-    <p class="hint">What the watcher knows about each folder on <code>main</code>: the LLM-written card
-      and the tables it reads and writes. Cached by git tree hash, rebuilt only when a folder changes.</p>
+    <p class="hint">What the watcher knows about each folder on <code>main</code>: its topics (one per model,
+      pipeline or tool), each with an LLM-written description, keywords and the tables it reads and writes.
+      Cached by git tree hash, rebuilt only when a folder changes.</p>
     <div class="index-grid" id="index"></div>
   </section>
 </main>
@@ -280,7 +287,8 @@ function rowsTable(rows, key, floor) {
   const hidden = rows.length - visible.length;
   const body = visible.map((r) => {
     const why = (r.dataflow ? flowLabel(r.dataflow) + "<br>" : "") +
-        `description ${r.card_score.toFixed(2)} · keywords ${r.kw_score.toFixed(2)} · code ${r.code_score.toFixed(2)}` +
+        `<span class="topicmatch">${esc(r.pr_topic)} ↔ ${esc(r.repo_topic)}</span><br>` +
+        `description ${r.desc_score.toFixed(2)} · keywords ${r.kw_score.toFixed(2)} · code ${r.code_score.toFixed(2)}` +
         (r.kw_match ? `<br>shared: <span class="mono">${esc(r.kw_match)}</span>` : "") +
         (r.code_match ? `<br><span class="mono">${esc(r.code_match)}</span>` : "");
     return `<tr class="${r.candidate ? "" : "dim"}">
@@ -298,13 +306,25 @@ function rowsTable(rows, key, floor) {
     <tbody>${body}${empty}</tbody></table>${more}`;
 }
 
-function cardBlock(card, title) {
-  if (!card) return "";
-  const io = `<div class="chips">${card.inputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("") || '<span class="meta">no inputs found</span>'}
-    <span class="arrow">→</span>${card.outputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("") || '<span class="meta">no outputs found</span>'}</div>`;
-  const kws = `<div class="chips">${(card.keywords || []).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>`;
-  return `<div class="card-desc"><div class="label">${esc(title)}</div><div>${esc(card.description)}</div>${kws}${io}
-    <details><summary>${card.func_names.length} functions embedded</summary>
+function topicChips(t) {
+  const io = `<div class="chips">${t.inputs.map((x) => `<span class="chip">${esc(x)}</span>`).join("") || '<span class="meta">no inputs found</span>'}
+    <span class="arrow">→</span>${t.outputs.map((x) => `<span class="chip">${esc(x)}</span>`).join("") || '<span class="meta">no outputs found</span>'}</div>`;
+  const kws = `<div class="chips">${(t.keywords || []).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>`;
+  return kws + io;
+}
+
+function topicsBlock(entry, title) {
+  if (!entry) return "";
+  const n = entry.topics.length;
+  const chunks = entry.n_chunks > 1 ? ` · read in ${entry.n_chunks} chunks and merged` : "";
+  const topics = entry.topics.map((t) => `<div class="topic"><div class="topic-name">${esc(t.name)}</div>
+    <div>${esc(t.description)}</div>${topicChips(t)}</div>`).join("");
+  return `<div class="card-desc"><div class="label">${esc(title)} — ${n} topic${n === 1 ? "" : "s"}${chunks}</div>${topics}
+    <details><summary>${entry.func_names.length} functions embedded (evidence only)</summary>
+    <div class="chips" style="margin-top:6px">${entry.func_names.map((f) => `<span class="chip">${esc(f)}</span>`).join("")}</div></details></div>`;
+}
+
+functions embedded</summary>
     <div class="chips" style="margin-top:6px">${card.func_names.map((f) => `<span class="chip">${esc(f)}</span>`).join("")}</div></details></div>`;
 }
 
@@ -318,7 +338,7 @@ function renderPRs(s) {
     const status = !pr.open ? "closed" : pr.status;
     const stale = pr.scored_sha && pr.scored_sha !== pr.head_sha;
     const statusText = {done: "scored", pending: "scoring…", error: "error", closed: "closed", new: "queued"}[status] || status;
-    const folders = pr.folders.map((f) => cardBlock(f.card, `What the LLM thinks ${f.folder}/ is (on the PR branch)`)
+    const folders = pr.folders.map((f) => topicsBlock(f.entry, `What the LLM thinks ${f.folder}/ is (on the PR branch)`)
       + rowsTable(f.rows, `${pr.number}:${f.folder}`, s.min_candidate_score)).join("");
     const body = folders || (pr.status === "error"
       ? `<pre class="err">${esc(pr.error)}</pre>`
@@ -336,10 +356,8 @@ function renderPRs(s) {
 function renderIndex(s) {
   $("#index").innerHTML = s.index.map((c) => c.pending
     ? `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="tag pending">indexing…</span></div></div>`
-    : `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="meta">${c.func_names.length} functions</span></div>
-       <p>${esc(c.description)}</p>
-       <div class="chips">${(c.keywords || []).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>
-       <div class="chips">${c.inputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="arrow">→</span>${c.outputs.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div></div>`
+    : `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="meta">${c.topics.length} topic${c.topics.length === 1 ? "" : "s"}${c.n_chunks > 1 ? ` · ${c.n_chunks} chunks` : ""}</span></div>
+       ${c.topics.map((t) => `<div class="topic"><div class="topic-name">${esc(t.name)}</div><p>${esc(t.description)}</p>${topicChips(t)}</div>`).join("")}</div>`
   ).join("") || '<div class="empty">Indexing main…</div>';
 }
 
@@ -389,9 +407,9 @@ function renderTry() {
   if (!tryResult) return;
   const floor = lastState ? lastState.min_candidate_score : 0.55;
   $("#try-result").innerHTML = `<div class="panel">
-    <div class="panel-head"><h3>${esc(tryResult.card.folder)}/</h3><span class="meta">scored in ${tryResult.seconds}s</span></div>
-    ${cardBlock(tryResult.card, "What the LLM thinks your code is")}
-    ${rowsTable(tryResult.rows, "try:" + tryResult.card.folder, floor)}</div>`;
+    <div class="panel-head"><h3>${esc(tryResult.entry.folder)}/</h3><span class="meta">scored in ${tryResult.seconds}s</span></div>
+    ${topicsBlock(tryResult.entry, "What the LLM thinks your code is")}
+    ${rowsTable(tryResult.rows, "try:" + tryResult.entry.folder, floor)}</div>`;
 }
 
 $("#try-go").onclick = async () => {

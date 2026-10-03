@@ -13,17 +13,20 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import cards, config, db, gitrepo
+from . import config, db, gitrepo, topics
 from . import main as watcher
 
 STATIC = Path(__file__).parent / "static"
 PORT = 8765
 
 
-def public_card(card):
-    if card is None:
+def public_folder(entry):
+    if entry is None:
         return None
-    return {k: card[k] for k in ("folder", "description", "inputs", "outputs", "keywords", "func_names")}
+    return {
+        "folder": entry["folder"], "n_chunks": entry["n_chunks"], "func_names": entry["func_names"],
+        "topics": [{k: t[k] for k in ("name", "description", "keywords", "inputs", "outputs")} for t in entry["topics"]],
+    }
 
 
 def commit_author(sha):
@@ -41,7 +44,7 @@ def state():
     index = []
     if base_sha:
         for folder, tree_sha in gitrepo.folders(base_sha).items():
-            index.append(public_card(db.get_card(conn, tree_sha)) or {"folder": folder, "pending": True})
+            index.append(public_folder(db.get_folder(conn, tree_sha)) or {"folder": folder, "pending": True})
 
     prs = []
     for pr in conn.execute("SELECT * FROM prs ORDER BY open DESC, number DESC"):
@@ -54,14 +57,14 @@ def state():
         )]
         folders = {}
         for r in rows:
-            folders.setdefault(r["pr_folder"], {"folder": r["pr_folder"], "rows": [], "card": None})
+            folders.setdefault(r["pr_folder"], {"folder": r["pr_folder"], "rows": [], "entry": None})
             folders[r["pr_folder"]]["rows"].append(r)
         scored_sha = rows[0]["head_sha"] if rows else None
         if scored_sha:
             try:
                 trees = gitrepo.folders(scored_sha)
                 for f in folders.values():
-                    f["card"] = public_card(db.get_card(conn, trees.get(f["folder"], "")))
+                    f["entry"] = public_folder(db.get_folder(conn, trees.get(f["folder"], "")))
             except Exception:
                 pass
         prs.append({
@@ -96,9 +99,9 @@ def try_code(folder, code):
         raise RuntimeError("main hasn't been indexed yet; wait for the first watcher pass")
     folder = re.sub(r"[^a-zA-Z0-9_\-]", "_", folder.strip()) or "my_system"
     started = time.time()
-    card = cards.build_card(folder, [(f"{folder}/main.py", code)])
-    rows = cards.rank_against_base(conn, base_sha, folder, card)
-    return {"card": public_card(card), "rows": rows, "seconds": round(time.time() - started, 1)}
+    entry = topics.build_folder(folder, [(f"{folder}/main.py", code)])
+    rows = topics.rank_against_base(conn, base_sha, folder, entry)
+    return {"entry": public_folder(entry), "rows": rows, "seconds": round(time.time() - started, 1)}
 
 
 class Handler(BaseHTTPRequestHandler):

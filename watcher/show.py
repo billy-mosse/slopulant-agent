@@ -18,8 +18,8 @@ def main():
             current = (r["pr_number"], r["pr_folder"])
             print(f"\nPR #{r['pr_number']} @ {r['head_sha'][:7]}  {r['pr_folder']}/")
         why = (f"{r['dataflow']}; " if r["dataflow"] else "") + (
-            f"desc {r['card_score']:.2f}, kw {r['kw_score']:.2f} [{r['kw_match'] or '-'}], "
-            f"code {r['code_score']:.2f} ({r['code_match']})"
+            f"topics '{r['pr_topic']}' ~ '{r['repo_topic']}': desc {r['desc_score']:.2f}, "
+            f"kw {r['kw_score']:.2f} [{r['kw_match'] or '-'}]; code {r['code_score']:.2f} ({r['code_match']})"
         )
         print(f"  {r['rank']:>2}. {r['repo_id']:<22} {r['score']:.2f}  {why}")
 

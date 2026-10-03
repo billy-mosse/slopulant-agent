@@ -1,7 +1,7 @@
 """Always-on PR watcher.
 
 Every POLL_SECONDS:
-  1. if the base branch moved, (re)index its folders (cards are cached by tree sha)
+  1. if the base branch moved, (re)index its folders' topics (cached by tree sha)
   2. enqueue any open PR whose head commit we haven't seen
   3. for each queued PR, describe+embed the folders it touches (as they are on the
      PR branch) and score them by cosine similarity against every other folder on base
@@ -16,7 +16,7 @@ import traceback
 
 from tqdm import tqdm
 
-from . import cards, config, db, github, gitrepo
+from . import config, db, github, gitrepo, topics
 
 log = logging.getLogger("watcher")
 
@@ -26,7 +26,7 @@ def index_base(conn):
     if db.get_kv(conn, "indexed_base_sha") != base_sha:
         started = time.time()
         folders = gitrepo.folders(base_sha)
-        cards.ensure_cards(conn, base_sha, folders)
+        topics.ensure_folders(conn, base_sha, folders)
         log.info("indexed %d folders on %s @ %s in %.1fs", len(folders), config.BASE_BRANCH, base_sha[:7], time.time() - started)
         db.set_kv(conn, "indexed_base_sha", base_sha)
     return base_sha
@@ -47,8 +47,8 @@ def score_pr(conn, base_sha, pr_number, head_sha):
     for pr_folder in gitrepo.touched_folders(base_sha, head_sha):
         if pr_folder not in head_folders:  # folder deleted by the PR
             continue
-        pr_card = cards.card_for(conn, head_sha, pr_folder, head_folders[pr_folder])
-        for r in cards.rank_against_base(conn, base_sha, pr_folder, pr_card):
+        pr_entry = topics.folder_for(conn, head_sha, pr_folder, head_folders[pr_folder])
+        for r in topics.rank_against_base(conn, base_sha, pr_folder, pr_entry):
             rows.append({
                 "ts": time.time(), "pr_number": pr_number, "head_sha": head_sha,
                 "pr_folder": pr_folder, "base_sha": base_sha, **r,
@@ -56,8 +56,8 @@ def score_pr(conn, base_sha, pr_number, head_sha):
     db.put_scores(conn, rows)
     for r in [r for r in rows if r["candidate"]]:
         log.info(
-            "PR #%s %s ~ %s: %.2f (desc %.2f, kw %.2f [%s], code %.2f, dataflow %s)", pr_number, r["pr_folder"],
-            r["repo_id"], r["score"], r["card_score"], r["kw_score"], r["kw_match"], r["code_score"], r["dataflow"],
+            "PR #%s %s ~ %s: %.2f [%s ~ %s] (desc %.2f, kw %.2f [%s], dataflow %s)", pr_number, r["pr_folder"],
+            r["repo_id"], r["score"], r["pr_topic"], r["repo_topic"], r["desc_score"], r["kw_score"], r["kw_match"], r["dataflow"],
         )
 
 
