@@ -26,7 +26,7 @@
   .slide.on { opacity: 1; visibility: visible; }
   @media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
 
-  .eyebrow { font: 600 15px "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+  .eyebrow { font: 600 22px "JetBrains Mono", monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--cyan); }
   h1, h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
   em.accent { font-style: normal; }  /* emphasis by color only, same face as the headline */
 
@@ -41,6 +41,7 @@
   .s1 .copy { position: absolute; left: 72px; bottom: 64px; width: 790px; display: grid; gap: 22px; }
   .s1 h1 { font-size: 64px; line-height: 1.02; }
   .s1 h1 em.accent { color: var(--magenta); }
+  .s1 .eyebrow { text-shadow: 0 1px 2px #000, 0 0 14px rgba(0,0,0,.9); }
   .s1 ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
   .s1 li { display: grid; grid-template-columns: 30px 1fr; font-size: 22px; color: #e4defa; }
   .s1 li b { color: var(--ink); font-weight: 600; }
@@ -48,10 +49,17 @@
 
   /* --- 2: architecture --- */
   .s2 { background: radial-gradient(1200px 700px at 85% -10%, rgba(139,107,255,.18), transparent 60%), var(--void); }
-  .s2 .head { position: absolute; left: 72px; top: 52px; right: 72px; display: flex; align-items: end; justify-content: space-between; gap: 40px; }
+  .s2 .head { position: absolute; left: 72px; top: 46px; right: 72px; }
+  .s2 h2 em.accent { color: var(--cyan); }
+  .voiceover { position: absolute; left: 72px; right: 72px; top: 178px; margin: 0; padding: 0; list-style: none;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .voiceover li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; font-size: 18px; line-height: 1.35; color: #ddd8ee; }
+  .voiceover li span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 600 14px "JetBrains Mono", monospace;
+    color: var(--void); background: var(--cyan); }
+  .voiceover b { color: var(--ink); font-weight: 600; }
   .s2 h2 { font-size: 50px; line-height: 1.05; }
-  .s2 .head p { margin: 0; max-width: 560px; color: var(--muted); font-size: 19px; }
-  .diagram { position: absolute; left: 72px; right: 72px; top: 178px; bottom: 50px; border-radius: 18px; padding: 18px 26px;
+
+  .diagram { position: absolute; left: 72px; right: 72px; top: 268px; bottom: 44px; border-radius: 18px; padding: 18px 26px;
     background: #fbfbfd; color: #1c2330; box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
     --panel: #ffffff; --ink: #1c2330; --muted: #5b6474; --line: #c9d0db; --llm: #2f5d8a; --llm-soft: #e6eef7;
     --store: #7a5a1f; --store-soft: #f6efe2; --future: #8a93a3; --hit: #1f7a4d; --accent: #6a3fe0; }
@@ -175,7 +183,7 @@
   .channels .head, .feedback .head { position: absolute; left: 72px; top: 52px; right: 72px; }
   .channels h2, .feedback h2 { font-size: 50px; line-height: 1.05; }
   .channels h2 em.accent { color: var(--cyan); }
-  .feedback h2 em.accent { color: var(--magenta); }
+  .feedback h2 em.accent { color: var(--cyan); }
   .apps { position: absolute; left: 72px; right: 72px; top: 196px; bottom: 150px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; align-items: stretch; }
   .app { display: grid; grid-template-rows: auto 1fr; gap: 12px; min-width: 0; }
   .app-name { display: flex; align-items: center; gap: 10px; font: 700 22px "Bricolage Grotesque", sans-serif; }
@@ -279,7 +287,7 @@
                     radial-gradient(800px 500px at 0% 0%, rgba(255,62,200,.10), transparent 60%), var(--void); }
   .s4 .head { position: absolute; left: 72px; top: 46px; right: 72px; }
   .s4 h2 { font-size: 46px; line-height: 1.06; }
-  .s4 h2 em.accent { color: var(--magenta); }
+  .s4 h2 em.accent { color: var(--cyan); }
   .s4 .col { position: absolute; top: 160px; bottom: 56px; display: grid; grid-template-rows: auto 1fr; gap: 16px; }
   .s4 .left { left: 72px; width: 800px; }
   .s4 .right { left: 930px; width: 598px; }
@@ -347,9 +355,9 @@
       <div class="eyebrow">The problem</div>
       <h1>Big companies build the same thing twice, <em class="accent">and the copies don't look alike.</em></h1>
       <ul>
-        <li><span>Teams can't see each other's work: the churn model, the recommender, the A/B readout get <b>rebuilt one org over</b>.</span></li>
-        <li><span>Teams ship <b>much faster than before</b>: more PRs, more systems, and PMs can't keep track of all of it.</span></li>
-        <li><span>Duplicates rarely look alike: different names, libraries, techniques. <b>Grep and regex miss them</b>; catching them takes understanding what the code is for.</span></li>
+        <li><span>Silos inevitably form in large companies, leading to <b>unnecessary repeated work</b>.</span></li>
+        <li><span>It gets worse as teams ship <b>much faster than before</b>: PMs can't keep track of it all, and humans alone aren't enough anymore.</span></li>
+        <li><span>Duplicates rarely look alike: different names, libraries, techniques. <b>Grep and regex miss them</b>; catching them takes <b>semantic understanding</b> of what the code is for.</span></li>
       </ul>
     </div>
   </section>
@@ -357,9 +365,14 @@
   <!-- 2 · ARCHITECTURE -->
   <section class="slide s2" aria-label="How it works">
     <div class="head">
-      <div><div class="eyebrow">How it works</div><h2>An always-on agent <em class="accent">reads every PR</em></h2></div>
-      <p>OpenClaw runs the watcher every 30 s on local Qwen3-Coder-Next. Each folder becomes topics; new code is matched against all of main; matches are judged, explained and posted on the PR.</p>
+      <div class="eyebrow">How it works</div><h2>An always-on agent <em class="accent">reads every PR</em></h2>
     </div>
+    <ol class="voiceover">
+      <li><span>1</span><div>An <b>OpenClaw agent</b> is always on, watching every pull request</div></li>
+      <li><span>2</span><div>It reads the new code and works out <b>what it's for</b></div></li>
+      <li><span>3</span><div>It compares that with <b>everything the company already built</b></div></li>
+      <li><span>4</span><div>When work overlaps, <b>humans get notified</b>, and know who to talk to</div></li>
+    </ol>
     <div class="diagram"><svg viewBox="0 0 1100 580" preserveAspectRatio="xMidYMid meet" role="img" aria-label="OpenClaw's scheduler runs a watcher tick every 30 seconds under a lock. The tick polls GitHub for open and merged PRs, queues new commits, extracts topics and candidates, asks the classifier, has the OpenClaw watcher agent write a note and posts it as an [oc] comment on the PR. Merges re-index main reusing cached topic sets. The dashboard reads the SQLite database and drives real PR actions and resets.">
         <defs>
           <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -484,7 +497,6 @@
         <p class="what">Always-on agent runtime</p>
         <ul>
           <li>Scheduled job every 30 s runs the watcher: poll PRs, score, comment</li>
-          <li>Its <code>watcher</code> agent writes the note to the PR author</li>
         </ul>
       </article>
       <div class="chev" aria-hidden="true">›</div>
