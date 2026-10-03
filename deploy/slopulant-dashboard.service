@@ -1,0 +1,14 @@
+[Unit]
+Description=Slopulant dashboards (team view + live pipeline) on 127.0.0.1:8765
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/slopulant-agent
+ExecStart=%h/slopulant-agent/.venv/bin/python -m watcher.web --host 127.0.0.1 --port 8765
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

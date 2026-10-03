@@ -203,12 +203,16 @@ Everything runs from this checkout, `~/slopulant-agent`.
   cp deploy/slopulant-clm.service ~/.config/systemd/user/
   systemctl --user daemon-reload && systemctl --user enable --now slopulant-clm
   ```
-- **Dashboards:** `python -m watcher.web --host 127.0.0.1 --port 8765`. From a laptop,
+- **Dashboards:** systemd user unit `deploy/slopulant-dashboard.service`
+  (`python -m watcher.web --host 127.0.0.1 --port 8765`). From a laptop,
   tunnel with `ssh -L 8765:127.0.0.1:8765 dell@<gb10>` and open
   http://127.0.0.1:8765/demo.
 - **Demo setup:**
   - Open test PRs from `/demo`; the test branches are listed there.
   - Save the baseline once from the **Data** tab, so **Reset demo** knows where to return.
+  - For a recording, `scripts/fresh_demo_pr.py <test branch>` opens a new PR from a copy of
+    the branch (clean GitHub timeline, fresh Discord alert); `--cleanup` closes and deletes
+    the `demo/*` copies afterwards.
   - `python -m watcher.backfill` analyses all test branches into the team view's history
     (it still uses the dummy LLM classifier).
 

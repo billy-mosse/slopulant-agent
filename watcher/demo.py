@@ -91,7 +91,9 @@ def reset(conn):
     # Demo results go; cached folders/topics stay (keyed by content, still valid).
     for table in ("scores", "decisions", "alerts", "pr_queue", "events"):
         conn.execute(f"DELETE FROM {table}")
-    conn.execute("DELETE FROM kv WHERE key LIKE 'indexed_base_sha%' OR key = 'last_error'")
+    # clm_finished markers go too: otherwise a re-scored commit never gets its note and its
+    # Discord alert stays pending.
+    conn.execute("DELETE FROM kv WHERE key LIKE 'indexed_base_sha%' OR key = 'last_error' OR key LIKE 'clm_finished:%'")
     conn.commit()
     db.add_event(conn, "reset", "reset to baseline: " + ("; ".join(steps) or "nothing to change"), steps=steps)
     return steps
