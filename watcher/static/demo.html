@@ -77,6 +77,9 @@
   .timeline { list-style: none; margin: 0; padding: 6px 14px 12px; max-height: 320px; overflow: auto; }
   .timeline li { display: grid; grid-template-columns: 64px 128px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
   .timeline li:last-child { border-bottom: 0; }
+  .timeline .evd { margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .timeline .evd b { color: var(--ink, inherit); font-weight: 600; }
+  .timeline .kw { color: var(--accent); font-size: 12px; }
   .timeline .t { color: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
   .tag { display: inline-block; padding: 1px 8px; border-radius: 5px; font-size: 11.5px; font-weight: 600; background: var(--soft); color: var(--muted); }
   .tag.start { background: var(--accent-soft); color: var(--accent); }
@@ -250,6 +253,22 @@ function compute(p) {
   }
   return {states, labels, details};
 }
+// a little more under the topics and candidates lines: what was found, and why it scored
+function eventDetail(e) {
+  const d = e.data;
+  if (e.kind !== "stage" || d.status !== "end") return "";
+  if (d.stage === "topics" && d.topic_details) {
+    const lines = Object.values(d.topic_details).flat().map((t) =>
+      `<div><b>${esc(t.name)}</b>: ${esc(t.summary)}${t.keywords.length ? ` <span class="kw">${t.keywords.map(esc).join(" · ")}</span>` : ""}</div>`);
+    return lines.length ? `<div class="evd">${lines.join("")}</div>` : "";
+  }
+  if (d.stage === "candidates" && d.top?.length) {
+    return `<div class="evd">${d.top.map((c) => `<div><b>${esc(c.folder)}</b> <span class="mono">${c.score.toFixed(2)}</span>: ` +
+      `“${esc(c.pr_topic)}” ~ “${esc(c.repo_topic)}” <span class="kw">description ${c.desc.toFixed(2)} · keywords ${c.kw.toFixed(2)}` +
+      `${c.kw_match ? ` (${esc(c.kw_match.split(", ").slice(0, 2).join(", "))})` : ""}${c.dataflow ? ` · ${esc(c.dataflow)}` : ""}</span></div>`).join("")}</div>`;
+  }
+  return "";
+}
 function stageDetail(st, e) {
   const d = e.data, s = d.seconds != null ? ` · ${d.seconds}s` : "";
   if (st === "detect") return `@ ${(d.head_sha || "").slice(0, 7)}`;
@@ -277,7 +296,7 @@ function render(p) {
     const st = e.kind === "stage" ? e.data.stage : e.kind.replace("pr_", "");
     const cls = e.kind === "stage" ? e.data.status : e.kind === "pr_merged" ? "merge" : e.kind === "error" ? "error" : "";
     return `<li><span class="t">${clock(e.ts)}</span><span><span class="tag ${cls}">${esc(st)}${e.kind === "stage" ? " " + esc(e.data.status) : ""}</span></span>
-      <span>${e.pr_number ? `<b>#${e.pr_number}</b> ` : ""}${esc(trunc(e.message, 140))}</span></li>`;
+      <span>${e.pr_number ? `<b>#${e.pr_number}</b> ` : ""}${esc(trunc(e.message, 140))}${eventDetail(e)}</span></li>`;
   }).join("") || `<li class="empty">Nothing yet.</li>`;
   // result
   const judged = states.classifier === "done" || states.agent === "done";

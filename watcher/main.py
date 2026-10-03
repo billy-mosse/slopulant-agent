@@ -32,6 +32,19 @@ from .history import finish
 log = logging.getLogger("watcher")
 
 
+def topic_brief(t):
+    """Name, first sentence of the description and two keywords, for the timeline."""
+    first = t["description"].split(". ")[0].rstrip(".")
+    return {"name": t["name"], "summary": first[:180] + ("…" if len(first) > 180 else ""), "keywords": t["keywords"][:2]}
+
+
+def candidate_brief(r):
+    """Why a candidate scored: the matched topic pair and each signal, for the timeline."""
+    return {"folder": r["repo_id"], "score": round(r["score"], 2), "pr_topic": r["pr_topic"], "repo_topic": r["repo_topic"],
+            "desc": round(r["desc_score"], 2), "kw": round(r["kw_score"], 2), "kw_match": r["kw_match"],
+            "dataflow": r["dataflow"]}
+
+
 def stage(conn, pr_number, name, status, message="", **data):
     """Pipeline progress for the live view: one event per stage start/end."""
     db.add_event(conn, "stage", message or f"{name} {status}", pr_number, stage=name, status=status, **data)
@@ -108,7 +121,8 @@ def score_pr(conn, base_sha, pr_number, head_sha):
         entries = {f: topics.folder_for(conn, head_sha, f, head_folders[f]) for f in touched}
     stage(conn, pr_number, "topics", "end", "; ".join(f"{f}: {len(e['topics'])} topic(s)" for f, e in entries.items()),
           seconds=round(time.time() - t0, 1), cached=cached,
-          topics={f: [t["name"] for t in e["topics"]] for f, e in entries.items()})
+          topics={f: [t["name"] for t in e["topics"]] for f, e in entries.items()},
+          topic_details={f: [topic_brief(t) for t in e["topics"]] for f, e in entries.items()})
 
     t0 = time.time()
     stage(conn, pr_number, "candidates", "start", "comparing topics with every folder on main")
@@ -121,7 +135,8 @@ def score_pr(conn, base_sha, pr_number, head_sha):
     cands = [r for r in rows if r["candidate"]]
     stage(conn, pr_number, "candidates", "end", f"{len(cands)} candidate(s) of {len(rows)} folder pairs",
           seconds=round(time.time() - t0, 1), n=len(cands),
-          candidates=[{"folder": r["repo_id"], "score": round(r["score"], 2), "dataflow": r["dataflow"]} for r in cands])
+          candidates=[{"folder": r["repo_id"], "score": round(r["score"], 2), "dataflow": r["dataflow"]} for r in cands],
+          top=[candidate_brief(r) for r in sorted(cands, key=lambda r: -r["score"])[:2]])
     return rows, entries
 
 
