@@ -83,7 +83,7 @@
   .state.main { background: #30363d; color: var(--gh-text); }
   .file { font: 500 13px "JetBrains Mono", monospace; color: var(--gh-text); padding: 9px 16px; border-bottom: 1px solid var(--gh-border); display: flex; gap: 10px; align-items: center; }
   .file .plus { color: var(--gh-add-sign); } .file .owner { margin-left: auto; color: var(--gh-muted); font-family: "IBM Plex Sans"; }
-  .code { font: 400 14.5px/1.7 "JetBrains Mono", monospace; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }
+  .code { font: 400 14px/1.7 "JetBrains Mono", monospace; font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }
   .code .ln { display: grid; grid-template-columns: 48px 22px 1fr; white-space: pre; }
   .code .n { color: var(--gh-muted); text-align: right; padding-right: 10px; }
   .code .add { background: var(--gh-add); } .code .add .n { background: var(--gh-add-num); color: #8fd19e; } .code .add .g { color: var(--gh-add-sign); }
@@ -92,9 +92,9 @@
   .code .gap { color: var(--gh-muted); padding-left: 70px; font-size: 12px; background: rgba(110,118,129,.08); }
   .k { color: #ff7b72; } .f { color: #d2a8ff; } .str { color: #a5d6ff; } .c { color: #8b949e; } .nb { color: #79c0ff; }
 
-  .pr { left: 72px; top: 160px; width: 630px; }
-  .main1 { left: 912px; top: 160px; width: 616px; }
-  .oc { left: 72px; top: 520px; width: 1456px; }
+  .pr { left: 72px; top: 160px; width: 712px; }
+  .main1 { left: 816px; top: 160px; width: 712px; }
+  .oc { left: 72px; top: 600px; width: 1456px; }
   .oc .bar { gap: 12px; }
   .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font: 700 13px "JetBrains Mono"; color: #07070b;
     background: linear-gradient(135deg, var(--magenta), var(--cyan)); flex: none; }
@@ -108,6 +108,26 @@
   .v b { font-family: "JetBrains Mono"; font-weight: 600; }
 
   .links { position: absolute; inset: 0; pointer-events: none; }
+
+  /* --- stack --- */
+  .stack { background: radial-gradient(1000px 600px at 50% 120%, rgba(139,107,255,.16), transparent 60%), var(--void); }
+  .stack .head { position: absolute; left: 72px; top: 52px; right: 72px; }
+  .stack h2 { font-size: 50px; line-height: 1.05; }
+  .stack h2 em.serif { color: var(--cyan); }
+  .stack .cards { position: absolute; left: 72px; right: 72px; top: 240px; display: grid; grid-template-columns: 1fr 30px 1fr 30px 1fr 30px 1fr; align-items: stretch; gap: 10px; }
+  .stack .card { background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 16px; padding: 24px 24px 28px; display: grid; gap: 10px; align-content: start; }
+  .stack .card.accent { border-color: rgba(255,62,200,.55); box-shadow: 0 0 0 1px rgba(255,62,200,.18), 0 20px 50px rgba(255,62,200,.10); }
+  .stack .tag-role { font: 600 13px "JetBrains Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+  .stack .card.accent .tag-role { color: var(--magenta); }
+  .stack h3 { margin: 0; font: 800 30px/1.1 "Bricolage Grotesque", sans-serif; letter-spacing: -.01em; }
+  .stack .what { margin: 0; color: var(--muted); font-size: 17px; }
+  .stack ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .stack li { font-size: 17px; line-height: 1.4; color: #e4defa; padding-left: 18px; position: relative; }
+  .stack li::before { content: ""; position: absolute; left: 0; top: .6em; width: 7px; height: 7px; border-radius: 50%; background: var(--violet); }
+  .stack li code { font: 500 15px "JetBrains Mono", monospace; background: rgba(110,118,129,.2); padding: 1px 5px; border-radius: 5px; }
+  .stack .chev { align-self: center; text-align: center; font-size: 40px; color: rgba(245,242,255,.35); }
+  .stack .base { position: absolute; left: 72px; right: 72px; top: 610px; text-align: center; padding: 14px; border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,.18); color: var(--muted); font: 500 16px "JetBrains Mono", monospace; }
 
   /* --- 4: future work --- */
   .s4 { background: radial-gradient(900px 600px at 95% 105%, rgba(102,217,255,.12), transparent 60%),
@@ -306,46 +326,101 @@
       </svg></div>
   </section>
 
-  <!-- 3 · EXAMPLE -->
-  <section class="slide s3" aria-label="Example: PR 9">
+  <!-- STACK -->
+  <section class="slide stack" aria-label="Tech stack">
     <div class="head">
-      <div class="eyebrow">A real catch · PR #9</div>
-      <h2>Nadia's new SEO titles tool <em class="serif">probably already exists</em>, two teams over</h2>
+      <div class="eyebrow">Tech stack</div>
+      <h2>Four pieces, <em class="serif">all running locally</em></h2>
+    </div>
+    <div class="cards">
+      <article class="card">
+        <div class="tag-role">runs the agent</div>
+        <h3>OpenClaw</h3>
+        <p class="what">Always-on agent runtime</p>
+        <ul>
+          <li>Scheduled job every 30 s runs the watcher: poll PRs, score, comment</li>
+          <li>Its <code>watcher</code> agent writes the note to the PR author</li>
+        </ul>
+      </article>
+      <div class="chev" aria-hidden="true">›</div>
+      <article class="card">
+        <div class="tag-role">reads the code</div>
+        <h3>Qwen3-Coder-Next</h3>
+        <p class="what">80B MoE, ~3B active · Q6 on Ollama</p>
+        <ul>
+          <li>Splits every folder into topics: what it does, its tables</li>
+          <li>Writes technical keywords per topic</li>
+          <li>The brain behind the agent's note</li>
+        </ul>
+      </article>
+      <div class="chev" aria-hidden="true">›</div>
+      <article class="card">
+        <div class="tag-role">finds candidates</div>
+        <h3>Embeddings</h3>
+        <p class="what">all-MiniLM-L6-v2 + keyword TF-IDF</p>
+        <ul>
+          <li>Embeds topic descriptions, matches the PR against all of main</li>
+          <li>Top 5 above 0.38, plus shared-table links</li>
+        </ul>
+      </article>
+      <div class="chev" aria-hidden="true">›</div>
+      <article class="card accent">
+        <div class="tag-role">judges each match</div>
+        <h3>CLM classifier</h3>
+        <p class="what">Contrastive model, 8B · in progress</p>
+        <ul>
+          <li>Duplicate, partial, upstream, downstream or unrelated</li>
+          <li>Confidence drives the alert; replaces today's LLM stand-in</li>
+        </ul>
+      </article>
+    </div>
+    <div class="base">All on one NVIDIA GB10 box · GitHub API for PRs and comments · SQLite for state</div>
+  </section>
+
+  <!-- 3 · EXAMPLE -->
+  <section class="slide s3" aria-label="Example: PR 28">
+    <div class="head">
+      <div class="eyebrow">A real catch · PR #28</div>
+      <h2>Chen's promo-targeting model <em class="serif">already exists</em>, one team over</h2>
     </div>
 
-    <div class="gh pr">
-      <div class="bar"><span class="state open">⟟ Open</span><span class="title">Generate SEO titles for PDPs <span>#9</span></span></div>
-      <div class="sub" style="padding:8px 16px;border-bottom:1px solid var(--gh-border)"><b>Nadia Karimi</b> wants to merge 1 commit into <b>main</b> from <b>arjun/seo-titles</b></div>
-      <div class="file"><span class="plus">+179</span> seo_titles/make_titles.py</div>
+    <div class="gh pr" id="pr-card">
+      <div class="bar"><span class="state open">⟟ Open</span><span class="title">Growth toolkit: promo targeting + send windows <span>#28</span></span></div>
+      <div class="sub" style="padding:8px 16px;border-bottom:1px solid var(--gh-border)"><b>Chen Wei</b> wants to merge 1 commit into <b>main</b> from <b>chen/growth-toolkit</b></div>
+      <div class="file"><span class="plus">+124</span> growth_toolkit/promo_targeting.py</div>
       <div class="code">
-        <div class="ln add"><span class="n">22</span><span class="g">+</span><span>MAX_LEN = <span class="nb">65</span>  <span class="c"># Google shows ~60-65 chars of a title</span></span></div>
+        <div class="ln add"><span class="n">63</span><span class="g">+</span><span><span class="k">def</span> <span class="f">fit</span>(df, E):</span></div>
+        <div class="ln add"><span class="n">64</span><span class="g">+</span><span>    X = design(df, E, df[<span class="str">"treated"</span>])  <span class="c"># treatment as a feature</span></span></div>
+        <div class="ln add hl"><span class="n">65</span><span class="g">+</span><span>    <span class="k">return</span> <span class="nb">HistGradientBoostingClassifier</span>(**GB_PARAMS).fit(X, …)</span></div>
         <div class="gap">⋯</div>
-        <div class="ln add hl" id="pr-fn"><span class="n">64</span><span class="g">+</span><span><span class="k">def</span> <span class="f">strip_promo</span>(text):</span></div>
-        <div class="ln add hl"><span class="n">67</span><span class="g">+</span><span>    cleaned = PROMO_RE.sub(<span class="str">" "</span>, text)</span></div>
-        <div class="ln add hl"><span class="n">68</span><span class="g">+</span><span>    cleaned = re.sub(<span class="str">r"\s*[-|:,]\s*(?=[-|:,]|$)"</span>, <span class="str">""</span>, cleaned)</span></div>
-        <div class="ln add hl"><span class="n">69</span><span class="g">+</span><span>    <span class="k">return</span> re.sub(<span class="str">r"\s{2,}"</span>, <span class="str">" "</span>, cleaned).strip(<span class="str">" -|:,"</span>)</span></div>
+        <div class="ln add"><span class="n">68</span><span class="g">+</span><span><span class="k">def</span> <span class="f">uplift</span>(model, df, E):</span></div>
+        <div class="ln add"><span class="n">70</span><span class="g">+</span><span>    p1 = model.predict_proba(design(df, E, ones))[:, <span class="nb">1</span>]</span></div>
+        <div class="ln add"><span class="n">71</span><span class="g">+</span><span>    p0 = model.predict_proba(design(df, E, zeros))[:, <span class="nb">1</span>]</span></div>
+        <div class="ln add hl" id="pr-fn"><span class="n">72</span><span class="g">+</span><span>    <span class="k">return</span> p1 - p0  <span class="c"># incremental conversion</span></span></div>
       </div>
     </div>
 
-    <div class="gh main1">
-      <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">title_rewriter/ <span>· SEO titles from attributes</span></span></div>
-      <div class="file">rewrite_titles.py <span class="owner">owner: <b style="color:var(--gh-text)">Sofia Brandt</b></span></div>
+    <div class="gh main1" id="main-card">
+      <div class="bar"><span class="state main">main</span><span class="title" style="font-size:16px">promo_uplift/ <span>· who should get a promo code</span></span></div>
+      <div class="file">uplift.py <span class="owner">owner: <b style="color:var(--gh-text)">Grace Liu</b></span></div>
       <div class="code">
-        <div class="ln"><span class="n">27</span><span class="g"></span><span><span class="k">from</span> templates <span class="k">import</span> MAX_TITLE_CHARS, template_for</span></div>
+        <div class="ln"><span class="n">60</span><span class="g"></span><span><span class="k">class</span> <span class="f">TLearner</span>:  <span class="c"># one model per arm</span></span></div>
+        <div class="ln hl"><span class="n">65</span><span class="g"></span><span>    self.model_t = <span class="nb">HistGradientBoostingClassifier</span>(**params)</span></div>
+        <div class="ln hl"><span class="n">66</span><span class="g"></span><span>    self.model_c = <span class="nb">HistGradientBoostingClassifier</span>(**params)</span></div>
         <div class="gap">⋯</div>
-        <div class="ln hl" id="main-fn"><span class="n">57</span><span class="g"></span><span><span class="k">def</span> <span class="f">strip_noise</span>(text: <span class="nb">str</span>) -&gt; <span class="nb">str</span>:</span></div>
-        <div class="ln hl"><span class="n">59</span><span class="g"></span><span>    text = NOISE_RE.sub(<span class="str">" "</span>, text <span class="k">or</span> <span class="str">""</span>)</span></div>
-        <div class="ln hl"><span class="n">60</span><span class="g"></span><span>    text = re.sub(<span class="str">r"\s*([,|-])\s*(?=[,|-]|$)"</span>, <span class="str">""</span>, text)</span></div>
-        <div class="ln hl"><span class="n">61</span><span class="g"></span><span>    <span class="k">return</span> re.sub(<span class="str">r"\s{2,}"</span>, <span class="str">" "</span>, text).strip(<span class="str">" ,-|"</span>)</span></div>
+        <div class="ln"><span class="n">77</span><span class="g"></span><span><span class="k">def</span> <span class="f">predict</span>(self, X):</span></div>
+        <div class="ln"><span class="n">79</span><span class="g"></span><span>    p_t = self.model_t.predict_proba(X)[:, <span class="nb">1</span>]</span></div>
+        <div class="ln"><span class="n">80</span><span class="g"></span><span>    p_c = self.model_c.predict_proba(X)[:, <span class="nb">1</span>]</span></div>
+        <div class="ln hl" id="main-fn"><span class="n">81</span><span class="g"></span><span>    <span class="k">return</span> pd.DataFrame({…, <span class="str">"uplift"</span>: p_t - p_c})</span></div>
       </div>
     </div>
 
     <div class="gh oc">
-      <div class="bar"><span class="avatar">oc</span><span><b>slopulant-watcher</b> <span class="bot">bot</span> <span class="sub">commented on #9 · 71 s after it opened</span></span></div>
+      <div class="bar"><span class="avatar">oc</span><span><b>slopulant-watcher</b> <span class="bot">bot</span> <span class="sub">commented on #28</span></span></div>
       <div class="body">
-        <div>Hi Nadia! Your <code>seo_titles</code> PR looks close to Sofia Brandt's <code>title_rewriter</code>: similar goal, different approach. A good next step would be to sync with Sofia: are you building a replacement or an extension?</div>
+        <div>Looks like Grace Liu's <code>promo_uplift</code>. Both pick the customers most likely to convert <i>because of</i> a promo, from the same inputs (customer embeddings, promo history), and produce comparable per-customer uplift scores. The only difference is the modeling approach: S-learner vs T-learner.</div>
         <div class="verdicts">
-          <span class="v dup">🟥 <b>title_rewriter</b> · owner Sofia Brandt · classifier: partial duplicate (0.85) · topic match 0.53</span>
+          <span class="v dup">🟥 <b>promo_uplift</b> · owner Grace Liu · classifier: duplicate (0.95) · topic match 0.68</span>
         </div>
       </div>
     </div>
@@ -355,7 +430,7 @@
         <marker id="am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff3ec8"/></marker>
       </defs>
       <path id="link-dup" d="" fill="none" stroke="#ff3ec8" stroke-width="3" marker-end="url(#am)"/>
-      <g id="lab-dup"><rect rx="8" fill="#1a0a16" stroke="#ff3ec8"/><text class="tag" fill="#ff8be0">potential duplicate</text><text class="tag-sub" fill="#d9a9cc">same job · near-identical cleanup</text></g>
+      <g id="lab-dup"><rect rx="8" fill="#1a0a16" stroke="#ff3ec8"/><text class="tag" fill="#ff8be0">potential duplicate</text><text class="tag-sub" fill="#d9a9cc">same model: gradient-boosted uplift, S- vs T-learner</text></g>
     </svg>
   </section>
 
@@ -373,30 +448,30 @@
           <span class="avatar">oc</span>
           <div class="bubble">
             <div class="who"><b>slopulant-watcher</b> <span class="bot">bot</span></div>
-            <div>Looks close to Sofia Brandt's <code>title_rewriter</code> (partial duplicate · 0.85).</div>
+            <div>Looks like Grace Liu's <code>promo_uplift</code> (duplicate · 0.95).</div>
             <div class="reacts"><span>👀 1</span></div>
           </div>
         </div>
         <div class="msg">
-          <span class="avatar human" style="--h: #3fb9a5">NK</span>
+          <span class="avatar human" style="--h: #3fb9a5">CW</span>
           <div class="bubble">
-            <div class="who"><b>Nadia Karimi</b></div>
-            <div><span class="mention">@slopulant-watcher</span> what's actually different? We need titles under 65 chars and our own keyword order.</div>
+            <div class="who"><b>Chen Wei</b></div>
+            <div><span class="mention">@slopulant-watcher</span> we need targeting under a fixed budget per promo. Does <code>promo_uplift</code> do that?</div>
           </div>
         </div>
         <div class="msg">
           <span class="avatar">oc</span>
           <div class="bubble agent">
             <div class="who"><b>slopulant-watcher</b> <span class="bot">bot</span></div>
-            <div><code>title_rewriter</code> already does the noise cleanup and slot dropping you rewrote. Its 70-char cap is one constant, and your keyword order fits as a new template in <code>templates.py</code>. Want me to loop Sofia in?</div>
+            <div>Mostly. It already scores every customer's uplift, and <code>pick_cutoff()</code> in <code>evaluate.py</code> picks who to target from margin and cost per code. A per-promo budget cap would be a small addition there. Want me to loop Grace in?</div>
             <div class="reacts"><span class="on">❤️ 2</span><span>👍 1</span></div>
           </div>
         </div>
         <div class="msg">
-          <span class="avatar human" style="--h: #c77dff">SB</span>
+          <span class="avatar human" style="--h: #c77dff">GL</span>
           <div class="bubble">
-            <div class="who"><b>Sofia Brandt</b></div>
-            <div>Happy to review a <code>seo_strict</code> template. Ping me 🙌</div>
+            <div class="who"><b>Grace Liu</b></div>
+            <div>Yes please. Happy to pair on a <code>budget_cap</code> option 🙌</div>
             <div class="reacts"><span class="on">❤️ 1</span></div>
           </div>
         </div>
@@ -429,7 +504,7 @@
 
 <button class="deck-nav navbtn prev" id="prev" aria-label="Previous slide">‹</button>
 <button class="deck-nav navbtn next" id="next" aria-label="Next slide">›</button>
-<div class="deck-nav counter" id="count">1 / 4</div>
+<div class="deck-nav counter" id="count">1 / 5</div>
 
 <script>
   const deck = document.getElementById("deck");
@@ -462,10 +537,15 @@
     rect.setAttribute("x", x); rect.setAttribute("y", y); rect.setAttribute("width", w); rect.setAttribute("height", 52);
   }
   function drawLinks() {
-    const a = box("pr-fn"), b = box("main-fn");
-    const ax = a.x + a.w + 6, ay = a.y + a.h * 2, bx = b.x - 8, by = b.y + b.h * 2;
-    document.getElementById("link-dup").setAttribute("d", `M${ax},${ay} C${ax + 90},${ay} ${bx - 90},${by} ${bx},${by}`);
-    label("lab-dup", (ax + bx) / 2 - 100, Math.max(ay, by) + 30);
+    // a bridge under both cards: from the PR's uplift line to the existing model's
+    const pr = box("pr-card"), mc = box("main-card"), a = box("pr-fn"), b = box("main-fn");
+    const sx = a.x + 330, sy = pr.y + pr.h + 4, ex = b.x + 360, ey = mc.y + mc.h + 10;
+    const low = Math.max(sy, ey) + 58;
+    document.getElementById("link-dup").setAttribute("d", `M${sx},${sy} C${sx},${low} ${ex},${low} ${ex},${ey}`);
+    const g = document.getElementById("lab-dup");
+    label("lab-dup", 0, 0);
+    const w = +g.children[0].getAttribute("width");
+    label("lab-dup", (sx + ex) / 2 - w / 2, low - 30);
   }
   addEventListener("resize", () => { fit(); if (slides[i].classList.contains("s3")) drawLinks(); });
   window.deckShow = show;  // used by the comments panel to jump to a comment's slide
