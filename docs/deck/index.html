@@ -7,7 +7,7 @@
 <script src="comments.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -28,7 +28,7 @@
 
   .eyebrow { font: 600 15px "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
   h1, h2 { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; letter-spacing: -.02em; margin: 0; text-wrap: balance; }
-  em.serif { font-family: "Instrument Serif", serif; font-style: italic; font-weight: 400; letter-spacing: 0; }
+  em.accent { font-style: normal; }  /* emphasis by color only, same face as the headline */
 
   /* --- 1: problem --- */
   .s1 .bg { position: absolute; inset: 0; background: #000 url("slop_cannon.png") center / cover no-repeat; }
@@ -40,7 +40,7 @@
             mask-image: linear-gradient(to right, #000 0%, #000 52%, transparent 66%); }
   .s1 .copy { position: absolute; left: 72px; bottom: 64px; width: 790px; display: grid; gap: 22px; }
   .s1 h1 { font-size: 64px; line-height: 1.02; }
-  .s1 h1 em.serif { color: var(--magenta); font-size: 70px; }
+  .s1 h1 em.accent { color: var(--magenta); }
   .s1 ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
   .s1 li { display: grid; grid-template-columns: 30px 1fr; font-size: 22px; color: #e4defa; }
   .s1 li b { color: var(--ink); font-weight: 600; }
@@ -70,7 +70,7 @@
   .s3 { background: radial-gradient(900px 600px at 10% 110%, rgba(255,62,200,.12), transparent 60%), var(--void); }
   .s3 .head { position: absolute; left: 72px; top: 46px; right: 72px; }
   .s3 h2 { font-size: 46px; line-height: 1.06; }
-  .s3 h2 em.serif { color: var(--cyan); }
+  .s3 h2 em.accent { color: var(--cyan); }
   .gh { position: absolute; background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 12px; color: var(--gh-text);
     font: 400 15px "IBM Plex Sans", sans-serif; box-shadow: 0 24px 60px rgba(0,0,0,.45); overflow: hidden; }
   .gh .bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--gh-border); background: var(--gh-panel); }
@@ -113,7 +113,7 @@
   .stack { background: radial-gradient(1000px 600px at 50% 120%, rgba(139,107,255,.16), transparent 60%), var(--void); }
   .stack .head { position: absolute; left: 72px; top: 52px; right: 72px; }
   .stack h2 { font-size: 50px; line-height: 1.05; }
-  .stack h2 em.serif { color: var(--cyan); }
+  .stack h2 em.accent { color: var(--cyan); }
   .stack .cards { position: absolute; left: 72px; right: 72px; top: 240px; display: grid; grid-template-columns: 1fr 22px 1fr 22px 1fr 22px 1fr; align-items: stretch; gap: 8px; }
   .stack .card { background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 16px; padding: 24px 24px 28px; display: grid; gap: 10px; align-content: start; }
   .stack .card.accent { border-color: rgba(255,62,200,.55); box-shadow: 0 0 0 1px rgba(255,62,200,.18), 0 20px 50px rgba(255,62,200,.10); }
@@ -138,7 +138,7 @@
                     radial-gradient(800px 500px at 0% 0%, rgba(255,62,200,.10), transparent 60%), var(--void); }
   .s4 .head { position: absolute; left: 72px; top: 46px; right: 72px; }
   .s4 h2 { font-size: 46px; line-height: 1.06; }
-  .s4 h2 em.serif { color: var(--magenta); }
+  .s4 h2 em.accent { color: var(--magenta); }
   .s4 .col { position: absolute; top: 160px; bottom: 56px; display: grid; grid-template-rows: auto 1fr; gap: 16px; }
   .s4 .left { left: 72px; width: 800px; }
   .s4 .right { left: 930px; width: 598px; }
@@ -204,7 +204,7 @@
     <div class="shade"></div>
     <div class="copy">
       <div class="eyebrow">The problem</div>
-      <h1>Big companies build the same thing twice. <em class="serif">Now at AI speed.</em></h1>
+      <h1>Big companies build the same thing twice. <em class="accent">Now at AI speed.</em></h1>
       <ul>
         <li><span>Teams can't see each other's work: the churn model, the recommender, the A/B readout get <b>rebuilt one org over</b>.</span></li>
         <li><span>AI multiplied velocity: <b>more PRs, more systems</b>, and PMs can no longer keep track of all of it.</span></li>
@@ -216,7 +216,7 @@
   <!-- 2 · ARCHITECTURE -->
   <section class="slide s2" aria-label="How it works">
     <div class="head">
-      <div><div class="eyebrow">How it works</div><h2>An always-on agent <em class="serif">reads every PR</em></h2></div>
+      <div><div class="eyebrow">How it works</div><h2>An always-on agent <em class="accent">reads every PR</em></h2></div>
       <p>OpenClaw runs the watcher every 30 s on local Qwen3-Coder-Next. Each folder becomes topics; new code is matched against all of main; matches are judged, explained and posted on the PR.</p>
     </div>
     <div class="diagram"><svg viewBox="0 0 1100 580" preserveAspectRatio="xMidYMid meet" role="img" aria-label="OpenClaw's scheduler runs a watcher tick every 30 seconds under a lock. The tick polls GitHub for open and merged PRs, queues new commits, extracts topics and candidates, asks the classifier, has the OpenClaw watcher agent write a note and posts it as an [oc] comment on the PR. Merges re-index main reusing cached topic sets. The dashboard reads the SQLite database and drives real PR actions and resets.">
@@ -334,7 +334,7 @@
   <section class="slide stack" aria-label="Tech stack">
     <div class="head">
       <div class="eyebrow">Tech stack</div>
-      <h2>Four pieces, <em class="serif">all running locally</em></h2>
+      <h2>Four pieces, <em class="accent">all running locally</em></h2>
     </div>
     <div class="cards">
       <article class="card">
@@ -384,8 +384,8 @@
   <!-- 3 · EXAMPLE -->
   <section class="slide s3" aria-label="Example: PR 28">
     <div class="head">
-      <div class="eyebrow">A real catch · PR #28</div>
-      <h2>Chen's promo-targeting model <em class="serif">already exists</em>, one team over</h2>
+      <div class="eyebrow">Example · PR #28</div>
+      <h2>Chen's promo-targeting model <em class="accent">already exists</em>, one team over</h2>
     </div>
 
     <div class="gh pr" id="pr-card">
@@ -442,7 +442,7 @@
   <section class="slide s4" aria-label="Future work">
     <div class="head">
       <div class="eyebrow">Future work</div>
-      <h2>From a flag on the PR <em class="serif">to a teammate in the thread</em></h2>
+      <h2>From a flag on the PR <em class="accent">to a teammate in the thread</em></h2>
     </div>
 
     <div class="col left">
