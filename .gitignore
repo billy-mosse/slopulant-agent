@@ -8,3 +8,4 @@ data-*/
 .env
 .gh_key
 .claude/
+docs/deck/comments-*.json

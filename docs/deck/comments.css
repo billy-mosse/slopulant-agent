@@ -1,0 +1,247 @@
+/* ── Letter Comments UI (hidden in print) ── */
+@media print {
+  #comments-toolbar, #comments-panel, #comments-floating-btn, #comment-modal { display: none !important; }
+  .comment-highlight { background: transparent !important; border-bottom: 0 !important; }
+}
+
+/* Don't let Ctrl+A grab the comment UI text */
+#comments-toolbar, #comments-panel, #comments-floating-btn, #comment-modal {
+  user-select: none;
+  -webkit-user-select: none;
+}
+#comment-modal textarea, #comment-modal .quote {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#comments-toolbar {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+#comments-toolbar button {
+  background: #1a3a5c;
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-left: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+#comments-toolbar button:hover { background: #2a527d; }
+#comments-toolbar .count {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-weight: bold;
+  margin-right: 4px;
+  font-size: 11px;
+}
+#comments-toolbar .status {
+  font-size: 10px;
+  color: #888;
+  margin-right: 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+}
+
+#comments-floating-btn {
+  position: absolute;
+  z-index: 9999;
+  background: #e65100;
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+#comments-floating-btn:hover { background: #ff7100; }
+
+#comments-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  background: #fafafa;
+  border-left: 1px solid #ccc;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+  z-index: 9998;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  display: none;
+  flex-direction: column;
+}
+#comments-panel.open { display: flex; }
+#comments-panel header {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f0f0f0;
+}
+#comments-panel header h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #1a3a5c;
+}
+#comments-panel header .actions button {
+  background: none;
+  border: 1px solid #888;
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 2px;
+  line-height: 1;
+}
+#comments-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.comment-item {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: 3px solid #e65100;
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.comment-item.resolved { border-left-color: #888; opacity: 0.55; }
+.comment-item .quote {
+  font-style: italic;
+  color: #555;
+  font-size: 11px;
+  margin-bottom: 6px;
+  border-left: 2px solid #fdd835;
+  padding-left: 6px;
+}
+.comment-item .text {
+  color: #000;
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+}
+.comment-item .meta {
+  font-size: 10px;
+  color: #888;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.comment-item .meta button {
+  background: none;
+  border: 0;
+  color: #1a3a5c;
+  cursor: pointer;
+  font-size: 10px;
+  margin-left: 6px;
+  padding: 0;
+}
+.comment-item .meta button:hover { text-decoration: underline; }
+
+.comment-highlight {
+  background: #fff594;            /* Google-Docs-style highlight yellow */
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 1px;
+}
+.comment-highlight:hover { background: #ffe066; }
+/* Resolved → no visual highlight on the text. The span stays in the DOM so
+   click-to-scroll from the side panel still works, but the body reads as plain text. */
+.comment-highlight.resolved {
+  background: transparent;
+  color: inherit;
+  cursor: text;
+}
+.comment-highlight.resolved:hover { background: transparent; }
+.comment-highlight.pending {
+  background: #ffe066;            /* darker yellow while modal is open */
+  outline: 1px dashed #f9a825;
+  outline-offset: 1px;
+}
+
+#comment-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  z-index: 10000;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  width: 380px;
+  display: none;
+}
+#comment-modal.open { display: block; }
+#comment-modal .quote {
+  font-style: italic;
+  color: #555;
+  font-size: 11px;
+  background: #fff3e0;
+  border-left: 2px solid #fdd835;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  max-height: 70px;
+  overflow-y: auto;
+  border-radius: 0 3px 3px 0;
+}
+#comment-modal textarea {
+  width: 100%;
+  min-height: 90px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+#comment-modal .actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+#comment-modal button {
+  background: #1a3a5c;
+  color: #fff;
+  border: 0;
+  border-radius: 3px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 12px;
+}
+#comment-modal button.cancel {
+  background: #888;
+}
+#comment-modal button:hover { opacity: 0.92; }
+
+/* --- deck additions --- */
+.comment-svg-highlight { paint-order: stroke; stroke: #ffd54f; stroke-width: 5px; stroke-linejoin: round; cursor: pointer; }
+.comment-svg-highlight.resolved { stroke: #e0e0e0; }
+#comments-toolbar { font-family: "IBM Plex Sans", -apple-system, sans-serif; }
+/* Dark slides: a translucent yellow wash + underline keeps light text readable. */
+.slide .comment-highlight:not(.resolved) { background: rgba(255, 213, 79, .32); box-shadow: inset 0 -3px 0 #ffd54f; color: inherit; }
+.slide .comment-highlight:not(.resolved):hover { background: rgba(255, 213, 79, .5); }
+.slide .comment-highlight.pending { background: rgba(255, 213, 79, .5); outline-color: #ffd54f; }
+/* Keep the toolbar clear of the panel header while the panel is open. */
+body:has(#comments-panel.open) #comments-toolbar { right: 352px; }
