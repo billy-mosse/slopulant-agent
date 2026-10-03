@@ -97,9 +97,7 @@ the same process, for laptop use).
 - **`/demo` Live pipeline:** an architecture diagram whose boxes light up as each
   stage runs, plus a timeline and the result. Open a test PR, merge it, or **Reset
   demo**: that force-pushes `main` back to the saved baseline and restores the
-  baseline's PRs. **Present side by side** opens GitHub on the right half of the
-  screen; it follows the pipeline (PR → Discord alert → merge → commits). Chrome may
-  ask to allow pop-ups the first time.
+  baseline's PRs.
 
 ## Evaluation
 

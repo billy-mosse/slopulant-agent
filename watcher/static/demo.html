@@ -98,14 +98,11 @@
   <div class="bar">
     <div class="brand"><b>Slopulent Living · Engineering</b><span>Overlap watcher: live pipeline</span></div>
     <span class="pill" id="tick"><span class="dot"></span>…</span>
-    <span class="pill" id="gh-status"><span class="dot off"></span>GitHub pane: not open</span>
     <span class="sep"></span>
     <select class="btn" id="branch" aria-label="Test PR to open"><option>Loading test PRs…</option></select>
     <button class="btn primary" id="open-pr">Open PR</button>
     <button class="btn" id="merge-pr" disabled>Merge</button>
     <button class="btn danger" id="reset">Reset demo</button>
-    <span class="sep"></span>
-    <button class="btn" id="present" title="Opens GitHub on the right half of the screen; it follows the pipeline (PR → Discord alert → merge)">Present side by side</button>
     <a class="btn" href="/" style="text-decoration:none">Team view</a>
   </div>
 </header>
@@ -204,7 +201,7 @@ function setEdges(states) {
 function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
 // ---- state from events ---------------------------------------------------------
-let P = null, lastSeenId = null, focusPr = null;
+let P = null, focusPr = null;
 const STAGES = ["detect", "topics", "candidates", "classifier", "agent"];  // discord + feedback come from p.discord
 
 function compute(p) {
@@ -296,62 +293,6 @@ function render(p) {
   }
 }
 
-// ---- GitHub pane --------------------------------------------------------------------
-let gh = null, ghFollowing = "";
-const GH_NAME = "slopulant-github";
-function rightHalf() {
-  const sx = screen.availLeft ?? 0, sy = screen.availTop ?? 0, w = Math.floor(screen.availWidth / 2), h = screen.availHeight;
-  return `popup=yes,left=${sx + w},top=${sy},width=${w},height=${h}`;
-}
-function ghStatus() {
-  const ok = gh && !gh.closed;
-  $("#present").hidden = !!ok;  // one button: gone while GitHub is open, back if that window is closed
-  $("#gh-status").innerHTML = `<span class="dot ${ok ? "on" : "off"}"></span>GitHub pane: ${ok ? esc(ghFollowing || "open") : "not open"}`;
-}
-function follow(url, label) {
-  if (!url) return;
-  ghFollowing = label || url.replace("https://github.com/", "");
-  if (gh && !gh.closed) {
-    try { gh.location.href = url; } catch (e) { gh = window.open(url, GH_NAME); }
-  }
-  ghStatus();
-}
-function opened(w, what) {
-  // window.open returns null when Chrome blocks the pop-up; some setups return a window that closes at once.
-  if (!w) { toast(`Chrome blocked the ${what} window. Allow pop-ups for 127.0.0.1:8765 (Chrome menu → Settings → Privacy and security → Site settings → Pop-ups and redirects → Allowed), then click again.`, 12000); return false; }
-  try { w.focus(); } catch (e) {}
-  setTimeout(() => { if (w.closed) toast(`The ${what} window was closed right away; Chrome may be blocking pop-ups for this site.`, 10000); }, 800);
-  return true;
-}
-function openGitHub() {
-  const url = P?.focus ? P.focus.url : `https://github.com/${P?.repo || ""}/pulls`;
-  gh = window.open(url, GH_NAME, rightHalf());
-  if (!opened(gh, "GitHub")) return;
-  ghFollowing = P?.focus ? `PR #${P.focus.number}` : "pull requests";
-  ghStatus();
-  toast("GitHub is open on the right half. It follows the pipeline from now on.", 5000);
-}
-$("#present").onclick = openGitHub;
-
-// react to new events (only those after the page loaded)
-let followedDiscord = null;
-function onEvents(p) {
-  // the Discord alert isn't an event (the Discord worker writes its own tables): follow it once it's posted
-  const dc = p.discord;
-  if (dc && dc.status === "sent" && dc.url && dc.message_id !== followedDiscord) {
-    if (followedDiscord !== null || lastSeenId !== null) follow(dc.url, `Discord · alert for PR #${p.focus.number}`);
-    followedDiscord = dc.message_id;
-  }
-  const fresh = p.events.filter((e) => lastSeenId !== null && e.id > lastSeenId).sort((a, b) => a.id - b.id);
-  lastSeenId = Math.max(lastSeenId ?? 0, ...p.events.map((e) => e.id), 0);
-  for (const e of fresh) {
-    if (e.kind === "stage" && e.data.stage === "detect" && e.data.url) follow(e.data.url, `PR #${e.pr_number}`);
-    if (e.kind === "pr_merged") follow(`https://github.com/${p.repo}/pull/${e.pr_number}`, `PR #${e.pr_number} · merged`);
-    if (e.kind === "stage" && e.data.stage === "reindex" && e.data.status === "end" && (e.data.changed || []).length) follow(`https://github.com/${p.repo}/commits/main`, "main · commits");
-    if (e.kind === "reset") follow(`https://github.com/${p.repo}/commits/main`, "main · after reset");
-  }
-}
-
 // ---- controls ------------------------------------------------------------------------
 async function loadCatalog() {
   try {
@@ -365,14 +306,13 @@ $("#open-pr").onclick = async () => {
   try {
     const r = await action("open", {branch: $("#branch").value});
     toast(`Opened PR #${r.pr.number}. The watcher picks it up within seconds.`);
-    follow(r.pr.url, `PR #${r.pr.number}`);
     loadCatalog();
   } catch (e) { toast("Couldn't open the PR: " + e.message, 7000); }
   finally { b.disabled = false; }
 };
 $("#merge-pr").onclick = async () => {
   const b = $("#merge-pr"), n = +b.dataset.number; if (!n) return; b.disabled = true;
-  try { await action("merge", {number: n}); toast(`Merged #${n}. main is re-indexed on the next tick.`); follow(`https://github.com/${P.repo}/pull/${n}`, `PR #${n} · merged`); }
+  try { await action("merge", {number: n}); toast(`Merged #${n}. main is re-indexed on the next tick.`); }
   catch (e) { toast("Couldn't merge: " + e.message, 7000); }
 };
 const reset = $("#reset");
@@ -385,7 +325,7 @@ reset.onclick = async () => {
 };
 
 async function tick() {
-  try { P = await getJSON("/api/pipeline"); onEvents(P); render(P); ghStatus(); }
+  try { P = await getJSON("/api/pipeline"); render(P); }
   catch (e) { $("#tick").innerHTML = `<span class="dot off"></span>can't reach the dashboard server`; }
 }
 drawStatic(); loadCatalog(); tick(); setInterval(tick, 1000); setInterval(loadCatalog, 20000);
