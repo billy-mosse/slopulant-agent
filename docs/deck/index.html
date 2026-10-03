@@ -3,8 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>Clawne</title>
-<link rel="stylesheet" href="comments.css">
-<script src="comments.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap">
@@ -1015,7 +1013,7 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
     label("lab-dup", (sx + ex) / 2 - w / 2, low - 30);
   }
   addEventListener("resize", () => { fit(); if (slides[i].classList.contains("s3")) drawLinks(); });
-  window.deckShow = show;  // used by the comments panel to jump to a comment's slide
+  window.deckShow = show;
   addEventListener("keydown", (e) => {
     if (e.target.closest && e.target.closest("textarea, input, [contenteditable]")) return;  // typing a comment
     if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); show(i + 1); }
