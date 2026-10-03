@@ -343,7 +343,7 @@ async function renderHistory() {
                    : `<circle cx="${cx}" cy="${cy}" r="6.5" class="${node}" stroke="var(--panel)" stroke-width="2.5"/>`;
     let tx = TX;
     if (r.c.short) { svg += `<text class="g-sha" x="${tx}" y="${cy + 4}">${esc(r.c.short)}</text>`; tx += 66; }
-    if (r.c.sha && h.baseline && r.c.sha === h.baseline) { svg += tag(tx, cy, "baseline", "var(--warn)", "var(--warn-soft)"); tx += 70; }
+    if (r.c.sha && h.baseline && r.c.sha === h.baseline) { svg += tag(tx, cy, "baseline", "var(--warn)", "var(--warn-soft)"); tx += 80; }
     if (r.pr) {
       svg += tag(tx, cy, `#${r.pr.number} ${r.state || r.pr.state}`, r.state === "open" ? "var(--pr-lane)" : "var(--ok)", r.state === "open" ? "var(--accent-soft)" : "var(--ok-soft)");
       tx += 22 + 7.2 * (`#${r.pr.number} ${r.state || r.pr.state}`).length;
@@ -475,6 +475,10 @@ function refreshTab(now) {
   if (tab === "db" && now) renderDB(); if (tab === "index" && S) renderIndex(S); if (tab === "prs" && S) renderPRs(S);
   if (tab === "try") loadPresets();
 }
+// open the tab named in the URL (#history, #db, ...) and keep the URL in sync
+const startTab = location.hash.slice(1);
+document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => history.replaceState(null, "", "#" + b.dataset.tab)));
+if (startTab && document.querySelector(`#tabs button[data-tab="${startTab}"]`)) document.querySelector(`#tabs button[data-tab="${startTab}"]`).click();
 refresh(); setInterval(refresh, 4000);
 setInterval(() => { if (["history", "activity"].includes(tab)) refreshTab(false); }, 8000);
 </script>

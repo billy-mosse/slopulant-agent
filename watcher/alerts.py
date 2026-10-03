@@ -55,6 +55,8 @@ def agent_summary(pr, folders, findings):
                 [binary, "agent", "--agent", config.OPENCLAW_AGENT, "--session-id", f"slopulant-pr-{pr['number']}",
                  "--message-file", path, "--json"],
                 capture_output=True, text=True, timeout=config.OPENCLAW_TIMEOUT,
+                # openclaw is a node script: make sure its node is on PATH (cron shells have a bare PATH)
+                env={**os.environ, "PATH": os.path.dirname(binary) + os.pathsep + os.environ.get("PATH", "")},
             )
             data = json.loads(proc.stdout) if proc.stdout.strip() else {}
             meta = (data.get("result") or {}).get("meta") or {}
