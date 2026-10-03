@@ -29,14 +29,14 @@
   em.accent { font-style: normal; }  /* emphasis by color only, same face as the headline */
 
   /* --- 1: problem --- */
-  .s1 .bg { position: absolute; inset: 0; background: #000 url("slop_cannon.png") center / cover no-repeat; }
+  .s1 .bg { position: absolute; inset: 0; background: #000 url("slop_cannon.png") calc(50% + 15px) center / cover no-repeat; }
   .s1 .shade { position: absolute; inset: 0;
     background:
       linear-gradient(to top, rgba(4,4,8,.96) 0%, rgba(4,4,8,.88) 30%, rgba(4,4,8,.0) 62%),
       linear-gradient(to right, rgba(4,4,8,.55) 0%, rgba(4,4,8,0) 55%);
     -webkit-mask-image: linear-gradient(to right, #000 0%, #000 52%, transparent 66%);
             mask-image: linear-gradient(to right, #000 0%, #000 52%, transparent 66%); }
-  .s1 .copy { position: absolute; left: 72px; bottom: 64px; width: 790px; display: grid; gap: 22px; }
+  .s1 .copy { position: absolute; left: 56px; bottom: 64px; width: 730px; display: grid; gap: 22px; }
   .s1 h1 { font-size: 64px; line-height: 1.02; }
   .s1 h1 em.accent { color: var(--magenta); }
   .s1 .eyebrow { text-shadow: 0 1px 2px #000, 0 0 14px rgba(0,0,0,.9); }
@@ -377,6 +377,23 @@
   .counter { left: 50%; bottom: 14px; transform: translateX(-50%); padding: 4px 12px; border-radius: 999px;
     background: rgba(20, 18, 32, .6); font: 500 13px "JetBrains Mono", monospace; color: var(--muted); letter-spacing: .08em; }
   .num { position: absolute; left: 72px; bottom: 26px; font: 500 13px "JetBrains Mono", monospace; color: rgba(245,242,255,.45); letter-spacing: .1em; }
+
+  .appendix { background: radial-gradient(1000px 600px at 0% 110%, rgba(102,217,255,.12), transparent 60%), var(--void); }
+  .appendix .head { position: absolute; left: 72px; top: 52px; right: 72px; }
+  .appendix h2 { font-size: 50px; line-height: 1.05; }
+  .appendix h2 em.accent { color: var(--cyan); }
+  .ap-size { position: absolute; left: 72px; right: 72px; top: 200px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .ap-stat { border: 1px solid rgba(245,242,255,.14); border-radius: 14px; padding: 18px 22px; background: rgba(245,242,255,.03); }
+  .ap-stat b { display: block; font: 800 46px/1 "Bricolage Grotesque", sans-serif; color: var(--cyan); }
+  .ap-stat span { font-size: 18px; color: var(--muted); }
+  .ap-table { position: absolute; left: 72px; right: 72px; top: 352px; border-collapse: collapse; font-size: 21px; width: calc(100% - 144px); }
+  .ap-table th { text-align: left; font: 600 15px "JetBrains Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); padding: 0 16px 10px; border-bottom: 1px solid rgba(245,242,255,.2); }
+  .ap-table td { padding: 11px 16px; border-bottom: 1px solid rgba(245,242,255,.08); }
+  .ap-table td.ap-num { font: 700 24px "JetBrains Mono", monospace; color: var(--ink); white-space: nowrap; }
+  .ap-table td.note { color: var(--muted); font-size: 18px; }
+  .ap-speed { position: absolute; left: 72px; right: 72px; bottom: 48px; text-align: center; padding: 14px; border-radius: 12px; font-size: 24px;
+    border: 1px solid rgba(255,62,200,.45); background: rgba(255,62,200,.06); }
+  .ap-speed b { color: var(--magenta); }
 </style>
 
 </head>
@@ -964,6 +981,33 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
       </div>
     </div>
   </section>
+
+  <section class="slide appendix" aria-label="Appendix">
+    <div class="head">
+      <div class="eyebrow">Appendix (if we still have time)</div>
+      <h2>Benchmark: <em class="accent">how well Clawne finds overlaps</em></h2>
+    </div>
+
+    <div class="ap-size">
+      <div class="ap-stat"><b>41</b><span>systems ("repos") across 8 teams</span></div>
+      <div class="ap-stat"><b>28</b><span>pull requests</span></div>
+      <div class="ap-stat"><b>40</b><span>expected relations to find</span></div>
+      <div class="ap-stat"><b>1,186</b><span>PR–system pairs scored</span></div>
+    </div>
+
+    <table class="ap-table">
+      <thead><tr><th>Metric</th><th>Result</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>True overlaps found</td><td class="ap-num">37 / 40 &nbsp;(93%)</td><td class="note">duplicate or closely related systems</td></tr>
+        <tr><td>Dependency links found</td><td class="ap-num">17 / 17 &nbsp;(100%)</td><td class="note">PRs that build on another team's system</td></tr>
+        <tr><td>False alarms on unrelated PRs</td><td class="ap-num">0 / 5</td><td class="note">no comment when nothing overlaps</td></tr>
+        <tr><td>Topic matching (195 queries)</td><td class="ap-num">recall@3 0.94</td><td class="note">right system in the top 3</td></tr>
+      </tbody>
+    </table>
+
+    <div class="ap-speed"><b>~1 minute</b> from opening a PR to the comment in Discord.</div>
+  </section>
+
 
 </div></div>
 
