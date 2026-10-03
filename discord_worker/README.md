@@ -2,7 +2,7 @@
 
 This worker connects the duplicate pipeline to Discord. It reads finished verdicts from the pipeline's shared SQLite database (`../data/watcher.db`), posts duplicate alerts in `#slop-factory`, and records reviewers' reactions against the exact analyzed commit.
 
-The watcher (Qwen3-Coder-Next topics + candidates) and the CLM worker (CLM-v0.1-8B verdicts + the OpenClaw agent's note) make the duplication decision. This worker handles delivery and feedback. It requires internet access to reach Discord.
+The watcher (Qwen3-Coder-Next topics + candidates) and the CLM worker (CLM-v0.1-8B verdicts + the OpenClaw agent's draft) make the duplication decision. This package turns finished verdicts into alerts and records feedback; in production OpenClaw delivers them (see **On the GB10**).
 
 ## Start from this repository
 
@@ -95,18 +95,25 @@ The real head commit, PR URL, author and GitHub state come from the watcher. A c
 .venv/bin/python -m dupcheck_discord sync-source      # import snapshots, don't send
 ```
 
-### On the GB10
+### On the GB10: delivery through OpenClaw
 
-The worker runs from `~/slopulant-agent/discord_worker` as a systemd user service, [`deploy/dupcheck-discord.service`](deploy/dupcheck-discord.service):
+OpenClaw owns the Discord connection; this package supplies the data side. The OpenClaw job
+`slopulant-discord` runs one pass every 30 s:
 
 ```sh
-cp deploy/dupcheck-discord.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now dupcheck-discord.service
-journalctl --user -u dupcheck-discord.service -n 30 --no-pager
+.venv/bin/python -m dupcheck_discord openclaw-sync      # import, post new alerts, sync 👍/👎
+.venv/bin/python -m dupcheck_discord openclaw-preview   # print the alert cards, send nothing
 ```
 
-Do not start a second `run` process while this service is active. The service restarts on failure and depends on the user's systemd session; lingering is not enabled.
+[`openclaw_bridge.py`](dupcheck_discord/openclaw_bridge.py) posts each eligible alert as a
+card with `openclaw message send --presentation` (records the message id with the same
+delivery bookkeeping as the bot), seeds 👍/👎, and reconciles reactions on the 10 most recent
+alerts with `openclaw message reactions` (per reviewer; the bot's own reactions don't count).
+Thread questions (@slop-factory) are answered by OpenClaw's `watcher` agent; see the
+repo README. Setup: `../deploy/openclaw_setup.sh`.
+
+The standalone bot (`python -m dupcheck_discord run`, discord.py) still works for the inbox
+examples, but must not run next to OpenClaw with the same token.
 
 ## Optional inbox integration
 

@@ -13,20 +13,26 @@ system ("repo"). Nothing in this repo should be committed there, and vice versa.
 Architecture diagram: [`docs/architecture.html`](docs/architecture.html). Pitch deck:
 [`docs/deck/`](docs/deck/).
 
-Four processes share **one SQLite database**, `data/watcher.db`:
+Everything shares **one SQLite database**, `data/watcher.db`. OpenClaw runs the schedule,
+the agent and the Discord connection:
 
 ```
-GitHub PR ─► watcher tick (OpenClaw cron, every 30 s)    Qwen3-Coder-Next: topics · MiniLM: candidates
-          ─► CLM worker (watcher/clm_worker.py)            CLM-v0.1-8B: is it a duplicate?  + OpenClaw note
-          ─► Discord worker (discord_worker/)             posts the alert to #slop-factory, records 👍/👎
-          ─► dashboards (watcher/web.py)                  live pipeline + team view, read-only
+GitHub PR ─► watcher tick (OpenClaw job, every 30 s)      Qwen3-Coder-Next: topics · MiniLM: candidates
+          ─► CLM worker (watcher/clm_worker.py)            CLM-v0.1-8B: is it a duplicate?
+                                                           + OpenClaw agent `watcher` (Qwen) drafts the alert
+          ─► Discord sync (OpenClaw job, every 30 s)       posts the alert card to #slop-factory via OpenClaw,
+                                                           syncs 👍/👎 reviews
+          ─► @slop-factory in a thread                     OpenClaw routes it to `watcher`, which answers
+                                                           with read-only tools (watcher/mcp_server.py)
+          ─► daily re-index (OpenClaw job, 06:00 NY)       regenerates topics for every folder on main
+          ─► dashboards (watcher/web.py)                   live pipeline + team view, read-only
 ```
 
 | Stage | Writes | Process |
 |---|---|---|
 | topics, PRs, candidates | `folders`, `topics`, `prs`, `pr_queue`, `scores` (`candidate = 1`) | watcher tick |
 | verdicts (`is_duplicate`), the note | `decisions` (+ CLM score, threshold, version), `alerts`, `history`, `kv` `clm_finished:<head>:<base>` | CLM worker |
-| delivery, reviews | `discord_decisions`, `discord_notifications`, `discord_feedback`, view `discord_flagger_feedback` | Discord worker |
+| delivery, reviews | `discord_decisions`, `discord_notifications`, `discord_feedback`, view `discord_flagger_feedback` | Discord sync (`dupcheck_discord openclaw-sync`) |
 
 One **tick** (`python -m watcher.main --once`), run every 30 s by an OpenClaw scheduled
 job. Ticks never overlap: each takes an exclusive lock, and queue items are claimed, so
@@ -54,11 +60,19 @@ a crashed run's items are retried.
    is a duplicate at p ≥ 0.19. The rule and its calibration live in
    [`clm_dupe/`](clm_dupe/README.md). Verdicts written by any other classifier (or an
    older CLM version) are re-judged.
-5. **Note.** When a PR commit has a duplicate, the OpenClaw agent `watcher` writes a
-   short note to the author (template fallback without OpenClaw).
-6. **Discord alert.** The [Discord worker](discord_worker/README.md) posts the note with
-   the PR link, owners, matched systems and the CLM/similarity evidence to
-   `#slop-factory`, and records 👍/👎 reactions as reviews.
+5. **Draft.** When a PR commit has a duplicate, the OpenClaw agent `watcher` (Qwen) gets
+   both systems' descriptions, tables, owners and scores and writes two short parts: *what
+   overlaps* and a *suggested next step* (`watcher/alerts.py` `ALERT_BRIEF`; template
+   fallback without OpenClaw).
+6. **Discord alert.** The OpenClaw job `slopulant-discord`
+   ([`openclaw_bridge.py`](discord_worker/dupcheck_discord/openclaw_bridge.py)) posts a card
+   through OpenClaw's Discord channel: the drafted parts plus the facts from data (PR link,
+   author, matched system with link, owner, CLM and similarity scores, shared keywords and
+   tables), and seeds 👍/👎. It also reads the reactions back as per-reviewer votes.
+   **Ask about it:** @mention slop-factory in the alert's thread. OpenClaw routes the
+   message to the same `watcher` agent, which looks the alert up and answers from data. Its
+   only tools are the read-only `slopulant` MCP tools (`watcher/mcp_server.py`): alert, PR
+   analysis, system topics, list/read files. No shell, file-write, web or config tools.
 7. **Feedback.** `python -m eval.export_feedback` turns the reviews into labelled pairs
    (label, CLM score, threshold, similarity) for re-picking the threshold.
 
@@ -176,15 +190,18 @@ Everything runs from this checkout, `~/slopulant-agent`.
   PROGRESS=0
   DISCORD_GUILD_ID=<server id, for "View in Discord" links>
   ```
-- **Watcher (OpenClaw):** `deploy/openclaw_setup.sh` creates the `watcher` agent and
-  the `slopulant-watcher` job (one tick every 30 s from this repo). Idempotent.
+- **OpenClaw:** `deploy/openclaw_setup.sh` (idempotent) installs the `watcher` agent's
+  instructions (`deploy/openclaw/watcher/*.md`), the Discord channel plugin, the config from
+  `deploy/openclaw_config.py` (Discord mention-only in #slop-factory → `watcher`; read-only
+  MCP tools; tool limits) and three jobs: `slopulant-watcher` and `slopulant-discord`
+  (every 30 s) and `slopulant-reindex` (06:00 America/New_York, registered **disabled**;
+  `--enable-reindex` turns it on). Secrets come from `discord_worker/.env`
+  (`DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`) and `.env` (`DISCORD_GUILD_ID`).
 - **CLM worker:** systemd user unit `deploy/slopulant-clm.service` (starts the CLM
   servers first, so they come back after a reboot).
-- **Discord worker:** `discord_worker/deploy/dupcheck-discord.service`, with
-  `discord_worker/.env` (`DUPCHECK_SOURCE=watcher`, `DUPCHECK_DB_PATH=../data/watcher.db`).
   ```sh
-  cp deploy/slopulant-clm.service discord_worker/deploy/dupcheck-discord.service ~/.config/systemd/user/
-  systemctl --user daemon-reload && systemctl --user enable --now slopulant-clm dupcheck-discord
+  cp deploy/slopulant-clm.service ~/.config/systemd/user/
+  systemctl --user daemon-reload && systemctl --user enable --now slopulant-clm
   ```
 - **Dashboards:** `python -m watcher.web --host 127.0.0.1 --port 8765`. From a laptop,
   tunnel with `ssh -L 8765:127.0.0.1:8765 dell@<gb10>` and open
@@ -202,6 +219,8 @@ python -m watcher.show               # latest candidates per PR (--all for every
 python -m eval.run_eval              # candidate-generator recall@K on the test PRs
 python -m eval.export_for_jesse      # eval SQLite for the classifier (see for_jesse_readme.md)
 python -m eval.export_feedback       # Discord 👍/👎 reviews as labelled CLM pairs (CSV)
+python -m watcher.reindex --from-cache   # the daily re-index as a dry run (cached topics, no LLM)
+(cd discord_worker && .venv/bin/python -m dupcheck_discord openclaw-preview)   # alert cards, not sent
 ~/clm-venv/bin/python -m watcher.clm_worker --once   # one CLM pass (env vars: clm_dupe/README.md)
 ```
 
@@ -224,8 +243,10 @@ python -m eval.export_feedback       # Discord 👍/👎 reviews as labelled CLM
 
 ## Discord alerts and feedback
 
-The [Discord worker](discord_worker/README.md) reads the same `data/watcher.db`: for each
-PR's latest analysed commit it waits until the CLM worker has finished it, then posts one
-alert per duplicate commit and records 👍/👎 reviews. Reviews link back to the judged pairs
-through the `discord_flagger_feedback` view (`pr_number`, `head_sha`, `base_sha`,
-`source_decision_keys`); `python -m eval.export_feedback` exports them.
+OpenClaw owns the Discord connection (bot `@slop-factory`, mention-only, #slop-factory
+only). The `slopulant-discord` job posts one alert card per duplicate PR commit once the
+CLM worker has finished it, and records 👍/👎 per reviewer. Reviews link back to the judged
+pairs through the `discord_flagger_feedback` view (`pr_number`, `head_sha`, `base_sha`,
+`source_decision_keys`); `python -m eval.export_feedback` exports them. See
+[`discord_worker/README.md`](discord_worker/README.md) for the adapter and the standalone
+bot (inbox mode) it grew out of.

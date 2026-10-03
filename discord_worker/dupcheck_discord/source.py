@@ -70,7 +70,7 @@ def _build_decisions(connection: sqlite3.Connection, repository: str) -> list[di
             v is not None and v["classifier"] in (version, "dataflow") for v in current))
         positive = [(r, v) for r, v in zip(candidates, current) if done and v and v["is_duplicate"]]
         note = connection.execute(
-            "SELECT summary, author_by FROM alerts WHERE pr_number = ? AND head_sha = ? AND base_sha = ?",
+            "SELECT summary, body, author_by FROM alerts WHERE pr_number = ? AND head_sha = ? AND base_sha = ?",
             (pr["number"], head_sha, base_sha)).fetchone()
         if positive and note is None:
             done = False  # the OpenClaw note is written right after the verdicts
@@ -129,6 +129,14 @@ def _build_decisions(connection: sqlite3.Connection, repository: str) -> list[di
             payload["author_name"] = _clip(history["author"], 256)
         if version:
             payload["model_version"] = _clip(version, 256)
+        if note and positive:  # Qwen's two parts of the alert (watcher/alerts.py draft_alert)
+            try:
+                parts = json.loads(note["body"])
+            except (TypeError, json.JSONDecodeError):
+                parts = {}
+            if isinstance(parts, dict) and parts.get("overlap") and parts.get("next_step"):
+                payload["overlap"], payload["next_step"] = _clip(parts["overlap"], 1000), _clip(parts["next_step"], 500)
+                payload["note_by"] = _clip(note["author_by"], 64)
         descriptions = []
         for folder, name in sorted({(r["pr_folder"], r["pr_topic"]) for r in rows}):
             if description := _topic_description(connection, folder, name):

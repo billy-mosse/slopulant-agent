@@ -63,6 +63,9 @@ def validate_decision(payload):
     if decision["is_duplicate"] and decision["status"] == "completed" and not reason.strip():
         raise ValueError("A completed duplicate decision needs an explanation in reason")
     decision["reason"] = reason.strip()
+    for key in ("overlap", "next_step", "note_by"):  # the drafted alert text (watcher source)
+        if payload.get(key) is not None:
+            decision[key] = _text(payload, key, limit=1000)
     for key in ("author_name", "model_version"):
         if payload.get(key) is not None:
             decision[key] = _text(payload, key, limit=256)

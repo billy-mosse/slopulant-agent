@@ -25,6 +25,8 @@ def main():
     commands.add_parser("feedback", help="Export recorded review feedback as JSON")
     commands.add_parser("sync-source", help="Import current decisions from the watcher's tables")
     commands.add_parser("source-preview", help="Preview the watcher database adapter without writing or sending")
+    commands.add_parser("openclaw-sync", help="One pass via OpenClaw: import verdicts, post new alerts, sync 👍/👎")
+    commands.add_parser("openclaw-preview", help="Print the OpenClaw alert cards that would be posted (no sending)")
     for command in ("ingest", "preview"):
         sub = commands.add_parser(command, help="Read a decision JSON file" if command == "ingest" else "Print the alert without sending it")
         sub.add_argument("file", type=Path)
@@ -66,6 +68,21 @@ def main():
         elif args.command == "sync-source":
             from .source import sync_source
             print(f"Imported {sync_source(store, repository_from_env())} new decision snapshots")
+        elif args.command in {"openclaw-sync", "openclaw-preview"}:
+            from .openclaw_bridge import presentation, run_once
+            channel = os.environ.get("DISCORD_CHANNEL_ID", "").strip()
+            if not channel.isdigit():
+                raise ValueError("Set DISCORD_CHANNEL_ID (numeric) for OpenClaw delivery")
+            if args.command == "openclaw-preview":
+                from .source import build_decisions
+                with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as connection:
+                    cards = [presentation(d) for d in build_decisions(connection, repository_from_env())
+                             if d["is_duplicate"] and d["status"] == "completed"]
+                print(json.dumps(cards, indent=2, ensure_ascii=False))
+            else:
+                logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+                reviewers = frozenset(x.strip() for x in os.environ.get("DISCORD_REVIEWER_IDS", "").split(",") if x.strip())
+                print(json.dumps(run_once(store, repository_from_env(), channel, reviewers)))
         elif args.command == "close-pr":
             store.close_pr(args.repository, args.pr_number, args.state)
             print(f"Marked {args.repository}#{args.pr_number} {args.state}")

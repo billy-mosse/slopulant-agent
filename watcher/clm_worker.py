@@ -17,6 +17,7 @@ Pairs are scored one at a time on purpose (see clm_dupe/README.md).
     HF_HUB_OFFLINE=1 CLM_DEVICE=cpu CLM_CKPT=.../CLM_v0.1-8B.pt ~/clm-venv/bin/python -m watcher.clm_worker
 """
 import argparse
+import json
 import logging
 import time
 import traceback
@@ -145,24 +146,39 @@ class Worker:
               verdicts=[{"folder": v["repo_id"], "relation": v["relation"], "confidence": v["confidence"]}
                         for v in verdicts.values()])
         if dupes:
-            self.write_note(pr_number, head_sha, base_sha, sorted(entries), findings)
+            self.describe(findings, entries, base_sha)
+            self.write_note(pr_number, head_sha, base_sha, findings)
         finish(self.conn, base_sha, {"pr_number": pr_number, "head_sha": head_sha}, entries, rows, findings,
                None, "live", started)
         db.set_kv(self.conn, finished_key(head_sha, base_sha), D.VERSION)
 
-    def write_note(self, pr_number, head_sha, base_sha, folders, findings):
-        """The OpenClaw agent's note for the author; the Discord worker uses it as the alert text."""
+    def describe(self, findings, entries, base_sha):
+        """Adds both topics' descriptions and tables to each finding, for the note prompt."""
+        main_folders = gitrepo.folders(base_sha)
+        for f in findings:
+            sides = (("pr", entries.get(f["pr_folder"]), f["pr_topic"]),
+                     ("repo", db.get_folder(self.conn, main_folders[f["repo_id"]]) if f["repo_id"] in main_folders else None,
+                      f["repo_topic"]))
+            for side, entry, name in sides:
+                t = next((t for t in (entry or {}).get("topics", []) if t["name"] == name), None)
+                if t:
+                    f.update({f"{side}_description": t["description"], f"{side}_reads": t["inputs"], f"{side}_writes": t["outputs"]})
+
+    def write_note(self, pr_number, head_sha, base_sha, findings):
+        """Qwen's part of the Discord alert (via the OpenClaw agent): what overlaps + a next step.
+        Stored in `alerts` (body = the JSON parts); the Discord bridge adds the facts and posts it."""
         pr = self.conn.execute("SELECT * FROM prs WHERE number = ?", (pr_number,)).fetchone()
         pr = {"number": pr_number, "title": f"PR #{pr_number}", "author": "unknown", **(dict(pr) if pr else {}),
               "head_sha": head_sha, "commit_author": gitrepo.commit_author(head_sha)}
         t0 = time.time()
-        stage(self.conn, pr_number, "agent", "start", f"OpenClaw agent '{config.OPENCLAW_AGENT}' writing the note",
+        stage(self.conn, pr_number, "agent", "start", f"OpenClaw agent '{config.OPENCLAW_AGENT}' drafting the alert",
               head_sha=head_sha)
-        summary, author_by = alerts.agent_summary(pr, folders, findings)
+        note, author_by = alerts.draft_alert(pr, findings)
+        summary = f"{note['overlap']}\n\nNext step: {note['next_step']}"
         stage(self.conn, pr_number, "agent", "end", summary[:160], seconds=round(time.time() - t0, 1),
               author_by=author_by, head_sha=head_sha)
         db.put_alert(self.conn, {"pr_number": pr_number, "head_sha": head_sha, "base_sha": base_sha, "summary": summary,
-                                 "body": summary, "author_by": author_by, "comment_url": None, "ts": time.time()})
+                                 "body": json.dumps(note), "author_by": author_by, "comment_url": None, "ts": time.time()})
 
     def tick(self):
         if not self.encoder_up():
