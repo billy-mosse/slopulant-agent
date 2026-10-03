@@ -1,0 +1,14 @@
+[Unit]
+Description=DupCheck Discord duplicate alerts and reaction feedback
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/dell/dupcheck-discord
+ExecStart=/home/dell/dupcheck-discord/.venv/bin/python -m dupcheck_discord run
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

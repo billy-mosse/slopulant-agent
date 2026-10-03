@@ -1,0 +1,27 @@
+{
+  "decision_id": "demo-receipts-42-abc1234",
+  "repository": "demo-team/projects",
+  "pr_number": 42,
+  "pr_title": "Add receipt field extraction",
+  "pr_url": "https://github.com/demo-team/projects/pull/42",
+  "head_sha": "abc1234abcdef1234567890123456789012345678",
+  "author_login": "maya-dev",
+  "author_name": "Maya",
+  "topic": "Extract merchant, date, and total from receipts",
+  "status": "completed",
+  "pr_state": "open",
+  "is_duplicate": true,
+  "duplicate_kind": "partial",
+  "reason": "The new receipt parser repeats merchant, date, and total extraction already implemented by Invoice Parser. Review whether the existing component can be reused or extended.",
+  "model_version": "qwen-local-demo",
+  "matches": [
+    {
+      "project_name": "Invoice Parser",
+      "topic": "Receipt and invoice field extraction",
+      "url": "https://github.com/demo-team/projects/blob/main/invoice/parser.py",
+      "pr_files": ["receipt/parser.py"],
+      "existing_files": ["invoice/parser.py"],
+      "evidence": "Both components normalize OCR text and extract the same three receipt fields using the same parsing stages. This is fictional sample evidence for testing."
+    }
+  ]
+}

@@ -130,3 +130,9 @@ box, serve the big model with vLLM and set `LLM_BASE_URL` / `LLM_MODEL`.
 | `MIN_CANDIDATE_SCORE` | `0.38` |
 | `LLM_CONCURRENCY` | `8` |
 | `LLM_CACHE` | `1`: identical LLM requests are answered from `data/llm_cache.json`; `0` disables |
+
+## Discord alerts and feedback
+
+The separate [Discord worker](discord_worker/README.md) posts duplicate alerts, records 👍/👎 reviews, and stores per-message like/dislike totals in SQLite. It includes its own dependencies, tests, examples, and a snapshot of the GB10's shared database; see its README for setup.
+
+The current `team_sqlite` adapter reads `Commited`, `new_prs`, `dup_cg`, and `dupe_decision`. This differs from the watcher's `data/watcher.db` schema, so the watcher is not automatically connected to it. A detector can also send structured decisions through the worker's JSON inbox API. The watcher commands above remain the way to run the watcher; run the Discord worker as a separate component.
