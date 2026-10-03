@@ -1,0 +1,13 @@
+{
+  "decision_id": "demo-clean-43-def5678",
+  "repository": "demo-team/projects",
+  "pr_number": 43,
+  "pr_title": "Add a new accessibility checker",
+  "pr_url": "https://github.com/demo-team/projects/pull/43",
+  "head_sha": "def5678abcdef1234567890123456789012345678",
+  "author_login": "alex-dev",
+  "topic": "Check missing image descriptions",
+  "is_duplicate": false,
+  "reason": "No matching implementation found.",
+  "matches": []
+}
