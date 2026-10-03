@@ -117,7 +117,7 @@
 
 <figure>
   <div class="scroller">
-      <svg id="flow" viewBox="0 0 1640 680" role="img" aria-label="Dataflow for the duplicate work detector. Offline and nightly: a sweep of main runs topic extraction, MiniLM-L6-v2 encodes each topic, and both the raw text and the vector land in the topics table. At PR time: openclaw picks up the PR, qwen3-coder-next decomposes the diff into topics, the same MiniLM encodes them, a candidate generator does an ANN lookup against the topics table for the nearest twenty, and the CLM classifier decides which pairs are real duplicates and writes a verdict with its rationale to the decisions table. openclaw polls that table for unnotified rows, DMs the PR author over Slack, Discord or email, and records the author's thumbs-up or thumbs-down in the reactions table, which feeds back into the classifier's exemplars and threshold. Model-backed stages are drawn as hexagons, tables as cylinders, and anything outside the GB10 with a dashed outline.">
+      <svg id="flow" viewBox="0 0 1640 680" role="img" aria-label="Dataflow for the duplicate work detector. Offline and nightly: a sweep of main runs topic extraction, all-MiniLM-L6-v2 encodes each topic, and both the raw text and the vector land in the topics table. At PR time: openclaw picks up the PR, qwen3-coder-next decomposes the diff into topics, the same MiniLM encodes them, a candidate generator does an ANN lookup against the topics table for the nearest twenty, and the CLM classifier decides which pairs are real duplicates and writes a verdict with its rationale to the decisions table. openclaw polls that table for unnotified rows, DMs the PR author over Slack, Discord or email, and records the author's thumbs-up or thumbs-down in the reactions table, which feeds back into the classifier's exemplars and threshold. Model-backed stages are drawn as hexagons, tables as cylinders, and anything outside the GB10 with a dashed outline.">
         <defs>
           <marker id="aS" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--sig)"/></marker>
           <marker id="aL" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--learn)"/></marker>
@@ -133,7 +133,7 @@
         <text class="n-s" x="598" y="62">nightly · coder-next</text>
 
         <path class="nd-m" d="M864 16 L1032 16 L1046 49 L1032 82 L864 82 L850 49 Z"/>
-        <text class="n-t" x="868" y="42">MiniLM-L6-v2</text>
+        <text class="n-t" x="868" y="42">all-MiniLM-L6-v2</text>
         <text class="n-s" x="868" y="62">encodes each topic</text>
 
         <path class="nd-s" d="M1120 17 A98 10 0 0 1 1316 17 L1316 81 A98 10 0 0 1 1120 81 Z"/>
@@ -171,7 +171,7 @@
         <text class="n-s" x="598" y="220">q6_k; ollama</text>
 
         <path class="nd-m" d="M864 150 L1032 150 L1046 198 L1032 246 L864 246 L850 198 Z"/>
-        <text class="n-t" x="868" y="178">MiniLM-L6-v2</text>
+        <text class="n-t" x="868" y="178">all-MiniLM-L6-v2</text>
         <text class="n-s" x="868" y="202">same model as index</text>
         <text class="n-s" x="868" y="220">topic → 384-d</text>
 
