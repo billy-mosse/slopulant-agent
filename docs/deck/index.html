@@ -76,9 +76,10 @@
 
   /* architecture diagram (Jesse's), scoped to slide 2 */
   .s2 .voiceover { top: 144px; }
-  .diagram.jd { top: 214px; bottom: 50px; display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 12px; background: #ffffff;
-    --g-surface: #ffffff; --g-surface-2: #eeefea; --g-ink: #14181b; --g-ink-2: #4e575d; --g-ink-3: #79838a;
-    --g-line: #d9dad4; --g-line-2: #c3c6be; --g-sig: #007c99; --g-sig-soft: #e3eff2; --g-learn: #9a5b16; --g-store: #f0f1ec; }
+  .diagram.jd { top: 214px; bottom: 50px; display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 12px; background: #111416;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.09);
+    --g-surface: #1a1e21; --g-surface-2: #22272a; --g-ink: #e7eae8; --g-ink-2: #98a2a7; --g-ink-3: #77838a;
+    --g-line: #2c3237; --g-line-2: #3b434a; --g-sig: #2ea3b2; --g-sig-soft: #12353b; --g-learn: #bd8139; --g-store: #20262a; }
   .diagram.jd > svg { flex: 1; min-height: 0; width: 100%; height: 100%; }
   .jd svg text { font-family: "Source Sans 3", system-ui, sans-serif; fill: var(--g-ink); }
   .jd .jd-n-t { font-family: Archivo, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
@@ -412,9 +413,9 @@
     </ol>
     <div class="diagram jd"><svg preserveAspectRatio="xMidYMid meet" viewBox="28 0 1606 660" role="img" aria-label="Dataflow for the duplicate work detector. Offline and nightly: a sweep of main runs topic extraction, MiniLM-L6-v2 encodes each topic, and both the raw text and the vector land in the topics table. At PR time: openclaw picks up the PR, qwen3-coder-next decomposes the diff into topics, the same MiniLM encodes them, a candidate generator does an ANN lookup against the topics table for the nearest twenty, and the CLM classifier decides which pairs are real duplicates and writes a verdict with its rationale to the decisions table. openclaw polls that table for unnotified rows, DMs the PR author over Slack, Discord or email, and records the author's thumbs-up or thumbs-down in the reactions table, which feeds back into the classifier's exemplars and threshold. Model-backed stages are drawn as hexagons, tables as cylinders, and anything outside the GB10 with a dashed outline.">
         <defs>
-          <marker id="jdaS" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--sig)"/></marker>
-          <marker id="jdaL" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--learn)"/></marker>
-          <marker id="jdaO" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--ink-3)"/></marker>
+          <marker id="jdaS" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--g-sig)"/></marker>
+          <marker id="jdaL" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--g-learn)"/></marker>
+          <marker id="jdaO" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--g-ink-3)"/></marker>
         </defs>
 
         <rect class="jd-fence" x="270" y="2" width="1356" height="544" rx="8"/>
