@@ -176,7 +176,7 @@
   .channels h2, .feedback h2 { font-size: 50px; line-height: 1.05; }
   .channels h2 em.accent { color: var(--cyan); }
   .feedback h2 em.accent { color: var(--magenta); }
-  .apps { position: absolute; left: 72px; right: 72px; top: 280px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; align-items: start; }
+  .apps { position: absolute; left: 72px; right: 72px; top: 196px; bottom: 150px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; align-items: stretch; }
   .app { display: grid; grid-template-rows: auto 1fr; gap: 12px; min-width: 0; }
   .app-name { display: flex; align-items: center; gap: 10px; font: 700 22px "Bricolage Grotesque", sans-serif; }
   .app-name img { width: 28px; height: 28px; object-fit: contain; }
@@ -203,6 +203,26 @@
   .gm-who { display: flex; align-items: center; gap: 7px; color: #8b949e; font-size: 13px; }
   .gm-who b { color: #e6edf3; }
   .gm-bot { border: 1px solid #30363d; border-radius: 999px; padding: 0 6px; font-size: 11px; }
+  .gm-at { color: #4493f8; font-weight: 600; }
+  .gl-count { font-size: 12px; color: #5f6368; border: 1px solid #dadce0; border-radius: 4px; padding: 0 5px; vertical-align: 3px; }
+  .gl-collapsed { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #eceff1; border-bottom: 1px solid #eceff1; font-size: 13.5px; }
+  .gl-collapsed .gl-snip { display: block; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gl-collapsed > div { min-width: 0; }
+  .gl-time { color: #5f6368; font-size: 12px; }
+  .gl-open-msg { display: grid; gap: 8px; }
+  .gl-open-msg .gl-from { grid-template-columns: 28px 1fr auto; display: grid; }
+  .gl-quote { color: #5f6368; font-size: 12.5px; border-left: 2px solid #dadce0; padding-left: 8px; }
+  .gl-actions { display: flex; gap: 8px; }
+  .gl-actions span { border: 1px solid #747775; border-radius: 999px; padding: 4px 14px; font-size: 13px; color: #444746; }
+  .sl-chan span { font-weight: 400; opacity: .75; margin-left: 6px; }
+  .sl-replies { margin: 6px 14px 0; padding-top: 6px; border-top: 1px solid #e8e8e8; color: #616061; font-size: 12.5px; }
+  .dc-reply { display: flex; align-items: center; gap: 6px; margin: 0 14px 0 30px; font-size: 12.5px; color: #b5bac1; position: relative; }
+  .dc-reply b { color: #c9a7ff; font-weight: 600; }
+  .dc-curve { width: 26px; height: 12px; border-left: 2px solid #4e5058; border-top: 2px solid #4e5058; border-top-left-radius: 6px; margin-top: 10px; }
+  .dotav.mini { width: 16px; height: 16px; font-size: 7px; }
+  .dc-msg.reply { padding-top: 4px; }
+  .dc-msg p { margin: 2px 0 0; }
+  .dc-at { color: #c9cdfb; background: rgba(88,101,242,.3); border-radius: 3px; padding: 0 2px; }
   .gm-table { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: #ffa198; background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.4); border-radius: 6px; padding: 5px 8px; }
   /* Gmail */
   .gmail { background: #fff; color: #202124; }
@@ -737,9 +757,14 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
           <div class="gm-bar"><span class="gm-open">Open</span> <b>Add item vectors for search &amp; recs</b></div>
           <div class="gm-comment">
             <div class="gm-who"><span class="dotav oc">oc</span><b>slopulant-watcher</b> <span class="gm-bot">bot</span> commented</div>
-            <p>[oc] This looks like Marcus Okafor's <code>product_embeddings</code>: both turn product titles, descriptions and tags into one vector per SKU for search and recs.</p>
+            <p>[oc] This looks like <code>product_embeddings</code>: both turn titles, descriptions and tags into one vector per SKU. <span class="gm-at">@marcus-okafor</span> owns it.</p>
             <div class="gm-table"><span>🟥 product_embeddings</span><span>partial duplicate · 0.80</span></div>
             <div class="rx"><span class="on">❤️ 2</span><span>👍 1</span></div>
+          </div>
+          <div class="gm-comment">
+            <div class="gm-who"><span class="dotav" style="background:#e2a03f">MO</span><b>marcus-okafor</b> commented</div>
+            <p>Good catch. <span class="gm-at">@priyanka-nair</span> want to add your TF-IDF block to ours instead? Happy to pair.</p>
+            <div class="rx"><span class="on">❤️ 1</span></div>
           </div>
         </div>
       </div>
@@ -747,18 +772,21 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
       <div class="app">
         <div class="app-name"><img src="icons/gmail.svg" alt="">Gmail</div>
         <div class="mock gmail">
-          <div class="gl-subject">Your PR may duplicate <b>product_embeddings</b></div>
-          <div class="gl-from"><span class="dotav oc">oc</span><div><b>Slopulant watcher</b><br><span>to Priyanka Nair, cc Marcus Okafor</span></div></div>
-          <p>Hi Priyanka, your new <b>catalog_vectors</b> builds a vector per product from titles, descriptions and tags. Marcus Okafor's team already publishes one for search and recs.</p>
-          <p>Worth a quick chat before merging?</p>
-          <div class="gl-btn">Open PR</div>
+          <div class="gl-subject">Your PR may duplicate product_embeddings <span class="gl-count">2</span></div>
+          <div class="gl-collapsed"><span class="dotav oc">oc</span><div><b>Slopulant watcher</b><span class="gl-snip">Hi Priyanka, your new catalog_vectors builds a vector per product…</span></div><span class="gl-time">2:14 PM</span></div>
+          <div class="gl-open-msg">
+            <div class="gl-from"><span class="dotav" style="background:#e2a03f">MO</span><div><b>Marcus Okafor</b><br><span>to Priyanka Nair, Slopulant watcher</span></div><span class="gl-time">2:31 PM</span></div>
+            <p>Hi Priyanka, we already publish product vectors for search and recs. Your TF-IDF and category features would make ours better, want to merge efforts?</p>
+            <p class="gl-quote">On Fri, Slopulant watcher wrote: …</p>
+          </div>
+          <div class="gl-actions"><span>↩ Reply</span><span>↪ Forward</span></div>
         </div>
       </div>
 
       <div class="app">
         <div class="app-name"><img src="icons/slack.svg" alt="">Slack</div>
         <div class="mock slack">
-          <div class="sl-chan"># ml-platform</div>
+          <div class="sl-chan">Thread <span>#ml-platform</span></div>
           <div class="sl-msg">
             <span class="dotav oc sq">oc</span>
             <div><b>slopulant-watcher</b> <span class="sl-app">APP</span> <span class="sl-time">2:14 PM</span>
@@ -766,9 +794,15 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
               <div class="rx light"><span class="on">❤️ 1</span><span>👀 2</span></div>
             </div>
           </div>
+          <div class="sl-replies">2 replies</div>
           <div class="sl-msg">
             <span class="dotav sq" style="background:#e2a03f">MO</span>
             <div><b>Marcus Okafor</b> <span class="sl-time">2:16 PM</span><p>Happy to add a TF-IDF block to ours, want to pair?</p></div>
+          </div>
+          <div class="sl-msg">
+            <span class="dotav sq" style="background:#3fb9a5">PN</span>
+            <div><b>Priyanka Nair</b> <span class="sl-time">2:19 PM</span><p>Yes! Didn't know it existed. Tomorrow 10am? 🙌</p>
+              <div class="rx light"><span class="on">👍 1</span></div></div>
           </div>
         </div>
       </div>
@@ -786,6 +820,13 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
                 <span>partial duplicate · 0.80</span>
               </div>
               <div class="rx dark"><span class="on">👍 3</span><span>❤️ 1</span></div>
+            </div>
+          </div>
+          <div class="dc-reply"><span class="dc-curve"></span><span class="dotav mini oc">oc</span><b>@slopulant-watcher</b> Possible duplicate…</div>
+          <div class="dc-msg reply">
+            <span class="dotav" style="background:#e2a03f">MO</span>
+            <div><b style="color:#f0b232">Marcus Okafor</b> <span class="dc-time">Today at 2:17 PM</span>
+              <p>On it, pinged <span class="dc-at">@Priyanka</span> to pair on a merged version.</p>
             </div>
           </div>
         </div>
@@ -838,7 +879,6 @@ def read_vectors(engine: Engine, model_version: str | None) -&gt; tuple[list[str
         </div>
         <div class="fb-note">The classifier sees the closest past cases next to each new one.</div>
       </div>
-      <div class="fb-note">Slider values are illustrative.</div>
     </div>
   </section>
 
