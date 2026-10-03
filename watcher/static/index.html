@@ -302,6 +302,13 @@ function rowsTable(rows, key) {
   return `<div class="scroll"><table><thead><tr><th>Folder on main · topic</th><th>Score</th><th>Evidence</th><th>Classifier</th></tr></thead><tbody>${body}</tbody></table></div>${more}`;
 }
 
+// The Discord alert for a PR commit (from the Discord worker's tables): link + live 👍/👎 counts.
+function discordLink(dc, text) {
+  if (!dc || dc.status !== "sent") return dc && dc.status === "pending" ? ` · <span class="meta">sending to Discord…</span>` : "";
+  const label = dc.url ? `<a href="${esc(dc.url)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
+  return ` · ${label} 👍 ${dc.likes} · 👎 ${dc.dislikes}`;
+}
+
 function renderPRs(s) {
   const prs = s.prs.filter((p) => p.state === "open" || p.folders.length);
   if (!prs.length) { $("#prs").innerHTML = `<div class="panel"><div class="empty">No open pull requests right now. Recent analyses are on the Overview.</div></div>`; return; }
@@ -309,7 +316,7 @@ function renderPRs(s) {
     const status = pr.state !== "open" ? pr.state : pr.status === "done" ? "scored" : pr.status;
     const chipClass = pr.state !== "open" ? pr.state : pr.status;
     const acts = pr.state === "open" ? `<div class="grow"><button class="btn primary" data-merge="${pr.number}">Merge</button><button class="btn" data-close="${pr.number}">Close</button></div>` : "";
-    const alert = pr.alert ? `<div class="alert">${esc(pr.alert.summary)}<div class="who">${pr.alert.author_by.startsWith("openclaw") ? "written by the OpenClaw agent" : "template (OpenClaw unavailable)"}${pr.alert.comment_url ? ` · <a href="${esc(pr.alert.comment_url)}" target="_blank" rel="noopener">[oc] comment on GitHub</a>` : ""}</div></div>` : "";
+    const alert = pr.alert ? `<div class="alert">${esc(pr.alert.summary)}<div class="who">${pr.alert.author_by.startsWith("openclaw") ? "written by the OpenClaw agent" : "template (OpenClaw unavailable)"}${discordLink(pr.discord, "alert in Discord")}</div></div>` : "";
     const folders = pr.folders.map((f) => topicsBlock(f.entry, `${f.folder}/ on the PR branch`) + rowsTable(f.rows, `${pr.number}:${f.folder}`)).join("");
     const body = folders || (pr.error ? `<pre class="mono" style="padding:12px 16px;white-space:pre-wrap;color:var(--dup)">${esc(pr.error.slice(-800))}</pre>` : `<div class="empty">Waiting for the watcher…</div>`);
     return `<div class="panel"><div class="panel-head"><h3><a href="${esc(pr.url)}" target="_blank" rel="noopener">#${pr.number}</a> ${esc(pr.title)}</h3>
@@ -340,7 +347,7 @@ async function renderOverview() {
     const ov = a.findings.filter((f) => ["duplicate", "partial"].includes(f.relation));
     const ln = a.findings.filter((f) => ["upstream", "downstream"].includes(f.relation));
     const pr = a.pr_number ? `<a href="https://github.com/${esc(O.repo)}/pull/${a.pr_number}" target="_blank" rel="noopener">#${a.pr_number}</a> ` : "";
-    return `<tr><td>${pr}${esc((a.title || a.branch).replace("[TEST] ", ""))}<div class="meta"><span class="chip ${esc(a.source)}">${esc(a.source)}</span> ${Object.keys(a.folders).map(esc).join(", ")}${a.comment_url ? ` · <a href="${esc(a.comment_url)}" target="_blank" rel="noopener">comment</a>` : ""}</div></td>
+    return `<tr><td>${pr}${esc((a.title || a.branch).replace("[TEST] ", ""))}<div class="meta"><span class="chip ${esc(a.source)}">${esc(a.source)}</span> ${Object.keys(a.folders).map(esc).join(", ")}${discordLink(a.discord, "Discord")}</div></td>
       <td>${esc(a.author || "?")}<div class="meta">${esc(a.author_team_name)}</div></td>
       <td>${ov.map((f) => `<div>${rel(f)}</div>`).join("") || '<span class="meta">none</span>'}</td>
       <td class="num">${ln.length || ""}</td></tr>`;

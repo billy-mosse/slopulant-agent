@@ -1,3 +1,4 @@
+import ast
 from contextlib import closing
 import json
 from pathlib import Path
@@ -9,199 +10,177 @@ from dupcheck_discord.source import build_decisions, sync_source
 from dupcheck_discord.store import Store
 
 
-TEAM_SCHEMA = """
-CREATE TABLE Commited (
-    topic_id INTEGER PRIMARY KEY, commited_topic TEXT, topic_desc TEXT, owner TEXT
-);
-CREATE TABLE new_prs (
-    pr_id INTEGER, topic_id INTEGER, folder_name TEXT, topic_desc TEXT,
-    owner TEXT, timestamp TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (pr_id, topic_id)
-);
-CREATE TABLE dup_cg (
-    dup_id INTEGER PRIMARY KEY, pr_id INTEGER, t_id INTEGER REFERENCES Commited(topic_id),
-    incumbent_topic TEXT, pr_topic TEXT
-);
-CREATE TABLE dupe_decision (
-    dup_id INTEGER PRIMARY KEY REFERENCES dup_cg(dup_id), boolean INTEGER
-);
-"""
+REPO = "acme/monorepo"
+HEAD, BASE = "a" * 40, "b" * 40
+VERSION = "clm-v0.1-8B/sys-same_problem/th0.19"
+
+
+def watcher_schema():
+    """The watcher's real SCHEMA constant, read without importing its dependencies."""
+    source = (Path(__file__).resolve().parents[2] / "watcher" / "db.py").read_text()
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", None) == "SCHEMA":
+            return node.value.value
+    raise AssertionError("watcher/db.py has no SCHEMA")
 
 
 class SourceTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.path = Path(self.temp.name) / "my database.db"
+        self.path = Path(self.temp.name) / "watcher.db"
+        with closing(sqlite3.connect(self.path)) as connection, connection:
+            connection.executescript(watcher_schema())
         self.store = Store(self.path)
-        with closing(sqlite3.connect(self.path)) as connection, connection:
-            connection.executescript(TEAM_SCHEMA)
-            connection.execute("INSERT INTO Commited VALUES (1, 'Password reset', 'Send reset links by email.', 'alice')")
-            connection.execute("INSERT INTO new_prs VALUES (101, 1001, 'auth/reset', 'Send password recovery links by email.', 'frank', '2026-10-01')")
-            connection.execute("INSERT INTO dup_cg VALUES (1, 101, 1, 'Password reset', 'Email password recovery')")
-            connection.execute("INSERT INTO dupe_decision VALUES (1, 1)")
+        self.pr(9, "[TEST] SEO titles", "frank")
+        self.folder("tree-pr", "seo_titles", "SEO Titles", "Writes SEO titles for product pages.")
+        self.folder("tree-main", "title_rewriter", "Title Rewriter", "Rewrites product titles for search.")
+        self.folder("tree-main2", "attribute_extraction", "Attributes", "Extracts product attributes.")
+        self.run_scores(9, HEAD, BASE, [("seo_titles", "title_rewriter", 1, None), ("seo_titles", "attribute_extraction", 1, "upstream:attrs"),
+                                         ("seo_titles", "churn", 0, None)])
 
-    def execute(self, statement, parameters=()):
+    # ---- fixture helpers (the watcher and CLM worker write these rows in production)
+    def sql(self, statement, *params):
         with closing(sqlite3.connect(self.path)) as connection, connection:
-            connection.execute(statement, parameters)
+            connection.execute(statement, params)
 
-    def decisions(self):
+    def pr(self, number, title, author, state="open"):
+        self.sql("INSERT OR REPLACE INTO prs VALUES (?, ?, ?, 'branch', ?, ?, ?, NULL, NULL)",
+                 number, title, author, f"https://github.com/{REPO}/pull/{number}", HEAD, state)
+
+    def folder(self, tree, folder, topic, description):
+        self.sql("INSERT INTO folders VALUES (?, 'm', 'e', ?, 1, '[]', x'', 0)", tree, folder)
+        self.sql("INSERT INTO topics VALUES (?, 'm', 'e', 0, ?, ?, x'', '[]', '[]', '[]')", tree, topic, description)
+
+    def run_scores(self, number, head, base, pairs):
+        self.sql("INSERT INTO pr_queue VALUES (?, ?, ?, 'done', NULL, 1, 1)", number, head, f"{base}|v")
+        topics = {"seo_titles": "SEO Titles", "title_rewriter": "Title Rewriter", "attribute_extraction": "Attributes", "churn": "Churn"}
+        for rank, (pr_folder, repo_id, candidate, dataflow) in enumerate(pairs, 1):
+            self.sql("INSERT INTO scores VALUES (1, ?, ?, ?, ?, ?, 0.6, 0.7, 0.5, 'titles', ?, ?, 0.1, NULL, ?, ?, ?)",
+                     number, head, pr_folder, repo_id, base, topics[pr_folder], topics[repo_id], dataflow, rank, candidate)
+
+    def decide(self, repo_id, is_dupe, score=0.6, classifier=VERSION, number=9, head=HEAD):
+        relation = "upstream" if classifier == "dataflow" else ("duplicate" if is_dupe else "unrelated")
+        self.sql("INSERT OR REPLACE INTO decisions VALUES (?, ?, ?, 'seo_titles', ?, ?, ?, ?, 'r', ?, 1, ?)",
+                 number, head, BASE, repo_id, relation, int(is_dupe), score, classifier, None if classifier == "dataflow" else 0.19)
+
+    def finish(self, note="Overlaps with title_rewriter; talk to its owner.", head=HEAD, number=9):
+        if note:
+            self.sql("INSERT OR REPLACE INTO alerts VALUES (?, ?, ?, ?, ?, 'openclaw:watcher', NULL, 1)", number, head, BASE, note, note)
+        self.sql("INSERT OR REPLACE INTO kv VALUES (?, ?)", f"clm_finished:{head}:{BASE}", VERSION)
+
+    def judge_all(self, dupe=True):
+        self.decide("title_rewriter", dupe)
+        self.decide("attribute_extraction", False, 1.0, "dataflow")
+        self.finish(note="Overlaps with title_rewriter; talk to its owner." if dupe else None)
+
+    def preview(self):
         with closing(sqlite3.connect(self.path)) as connection:
-            return build_decisions(connection)
+            return build_decisions(connection, REPO)
 
-    def stored_decisions(self):
+    def stored(self):
         with closing(sqlite3.connect(self.path)) as connection:
-            return [json.loads(row[0]) for row in connection.execute(
-                "SELECT payload_json FROM discord_decisions ORDER BY rowid",
-            )]
+            return [json.loads(row[0]) for row in connection.execute("SELECT payload_json FROM discord_decisions ORDER BY rowid")]
 
-    def add_comparison(self, *, dup_id=2, topic_id=2, verdict=1, pr_number=101):
-        with closing(sqlite3.connect(self.path)) as connection, connection:
-            connection.execute("INSERT INTO Commited VALUES (?, 'CSV export', 'Export rows as CSV.', 'bob')", (topic_id,))
-            connection.execute("INSERT INTO dup_cg VALUES (?, ?, ?, 'CSV export', 'Customer CSV download')", (dup_id, pr_number, topic_id))
-            if verdict is not None:
-                connection.execute("INSERT INTO dupe_decision VALUES (?, ?)", (dup_id, verdict))
-
-    def test_real_schema_uses_incumbent_topic_and_actual_pr_author(self):
-        payload = self.decisions()[0]
-        self.assertEqual(payload["pr_number"], 101)
+    # ---- tests
+    def test_duplicate_snapshot_carries_commit_link_note_and_evidence(self):
+        self.judge_all()
+        [payload] = self.preview()
+        self.assertEqual(payload["status"], "completed")
+        self.assertTrue(payload["is_duplicate"])
+        self.assertEqual((payload["pr_number"], payload["head_sha"], payload["base_sha"]), (9, HEAD, BASE))
+        self.assertEqual(payload["pr_url"], f"https://github.com/{REPO}/pull/9")
         self.assertEqual(payload["author_login"], "frank")
-        self.assertEqual(payload["topic"], "Email password recovery")
-        self.assertEqual(payload["source_pr_topic_ids"], [1001])
-        self.assertEqual(payload["source_dup_ids"], [1])
-        self.assertEqual(payload["matches"][0]["source_topic_id"], 1)
-        self.assertEqual(payload["matches"][0]["source_dup_id"], 1)
-        self.assertIn("Send reset links by email.", payload["matches"][0]["evidence"])
-        self.assertIsNone(payload["head_sha"])
-        self.assertIsNone(payload["pr_url"])
-        self.assertEqual(payload["duplicate_kind"], "unspecified")
-        self.assertEqual(payload["pr_description"], "Send password recovery links by email.")
+        self.assertEqual(payload["reason"], "Overlaps with title_rewriter; talk to its owner.")
+        self.assertEqual(payload["model_version"], VERSION)
+        self.assertEqual(payload["source_decision_keys"], ["seo_titles/title_rewriter"])
+        [match] = payload["matches"]  # the dataflow link is not a duplicate
+        self.assertEqual(match["project_name"], "title_rewriter")
+        self.assertEqual(match["url"], f"https://github.com/{REPO}/tree/{BASE}/title_rewriter")
+        self.assertIn("Rewrites product titles for search.", match["topic"])
+        self.assertIn("CLM same-problem score 0.60 (threshold 0.19)", match["evidence"])
+        self.assertIn("Writes SEO titles for product pages.", payload["pr_description"])
 
-    def test_multiple_matches_and_pr_folders_are_one_snapshot(self):
-        self.add_comparison()
-        self.execute("INSERT INTO new_prs VALUES (101, 1002, 'exports/customers', 'Export customers.', 'frank', '2026-10-01')")
-        payloads = self.decisions()
-        self.assertEqual(len(payloads), 1)
-        self.assertEqual(len(payloads[0]["matches"]), 2)
-        self.assertEqual(payloads[0]["source_dup_ids"], [1, 2])
-        self.assertEqual(payloads[0]["source_pr_topic_ids"], [1001, 1002])
-        self.assertEqual(payloads[0]["folder_names"], ["auth/reset", "exports/customers"])
+    def test_unfinished_commit_is_pending_and_not_delivered(self):
+        self.decide("title_rewriter", True)  # one of two candidates judged, no finished marker
+        self.assertEqual(self.preview()[0]["status"], "pending")
+        self.assertEqual(sync_source(self.store, REPO), 1)
+        self.assertEqual(self.store.ready("100"), [])
+        self.decide("attribute_extraction", False, 1.0, "dataflow")
+        self.finish()
+        self.assertEqual(sync_source(self.store, REPO), 1)
+        self.assertEqual(len(self.store.ready("100")), 1)
 
-    def test_clean_candidates_are_not_attached_to_duplicate_feedback(self):
-        self.add_comparison(verdict=0)
-        payload = self.decisions()[0]
-        self.assertEqual(payload["source_dup_ids"], [1])
-        self.assertEqual(len(payload["matches"]), 1)
+    def test_duplicate_waits_for_the_openclaw_note(self):
+        self.decide("title_rewriter", True)
+        self.decide("attribute_extraction", False, 1.0, "dataflow")
+        self.finish(note=None)
+        self.assertEqual(self.preview()[0]["status"], "pending")
+
+    def test_verdicts_from_another_classifier_are_not_final(self):
+        self.judge_all()
+        self.decide("title_rewriter", True, classifier="llm-dummy-v1")  # stale verdict awaiting re-judging
+        self.assertEqual(self.preview()[0]["status"], "pending")
 
     def test_clean_verdict_is_ingested_and_never_eligible_for_delivery(self):
-        self.execute("UPDATE dupe_decision SET boolean = 0")
-        self.assertEqual(sync_source(self.store), 1)
-        payload = self.stored_decisions()[0]
+        self.judge_all(dupe=False)
+        self.assertEqual(sync_source(self.store, REPO), 1)
+        [payload] = self.stored()
         self.assertFalse(payload["is_duplicate"])
         self.assertEqual(payload["status"], "completed")
         self.assertEqual(payload["matches"], [])
         self.assertEqual(self.store.ready("100"), [])
 
+    def test_pr_without_candidates_is_clean(self):
+        self.pr(10, "[TEST] unrelated", "grace")
+        self.run_scores(10, "c" * 40, BASE, [("seo_titles", "churn", 0, None)])
+        payload = next(p for p in self.preview() if p["pr_number"] == 10)
+        self.assertEqual((payload["status"], payload["is_duplicate"]), ("completed", False))
+
     def test_identical_polls_do_not_add_or_resend_a_snapshot(self):
-        self.assertEqual(sync_source(self.store), 1)
-        self.assertEqual(sync_source(self.store), 0)
-        self.assertEqual(len(self.stored_decisions()), 1)
-        payload = self.store.ready("100")[0]
-        self.store.mark_sent(payload["decision_id"], "100", "900")
-        self.assertEqual(sync_source(self.store), 0)
-        self.assertEqual(self.store.ready("100"), [])
+        self.judge_all()
+        self.assertEqual(sync_source(self.store, REPO), 1)
+        self.assertEqual(sync_source(self.store, REPO), 0)
+        self.assertEqual(len(self.stored()), 1)
 
-    def test_negative_update_invalidates_pending_positive(self):
-        sync_source(self.store)
+    def test_changed_verdict_supersedes_pending_alert(self):
+        self.judge_all()
+        sync_source(self.store, REPO)
         self.assertEqual(len(self.store.ready("100")), 1)
-        self.execute("UPDATE dupe_decision SET boolean = 0")
-        self.assertEqual(sync_source(self.store), 1)
+        self.decide("title_rewriter", False, 0.1)
+        self.assertEqual(sync_source(self.store, REPO), 1)
         self.assertEqual(self.store.ready("100"), [])
-
-    def test_missing_verdict_holds_the_entire_pr_pending(self):
-        sync_source(self.store)
-        self.add_comparison(verdict=None)
-        self.assertEqual(sync_source(self.store), 1)
-        self.assertEqual(self.stored_decisions()[-1]["status"], "pending")
-        self.assertEqual(self.store.ready("100"), [])
-        self.execute("INSERT INTO dupe_decision VALUES (2, 0)")
-        self.assertEqual(sync_source(self.store), 1)
-        self.assertEqual(len(self.store.ready("100")), 1)
-
-    def test_reverting_boolean_creates_latest_immutable_snapshot(self):
-        sync_source(self.store)
-        self.execute("UPDATE dupe_decision SET boolean = 0")
-        sync_source(self.store)
-        self.execute("UPDATE dupe_decision SET boolean = 1")
-        self.assertEqual(sync_source(self.store), 1)
-        payloads = self.stored_decisions()
-        self.assertEqual(len(payloads), 3)
-        self.assertEqual(payloads[0]["source_revision"], payloads[2]["source_revision"])
-        self.assertNotEqual(payloads[0]["decision_id"], payloads[2]["decision_id"])
-        self.assertEqual(self.store.ready("100")[0]["decision_id"], payloads[2]["decision_id"])
-
-    def test_changed_source_metadata_creates_a_new_revision(self):
-        sync_source(self.store)
-        self.execute("UPDATE Commited SET topic_desc = 'Use the shared reset email service.'")
-        self.assertEqual(sync_source(self.store), 1)
-        payloads = self.stored_decisions()
-        self.assertNotEqual(payloads[0]["source_revision"], payloads[1]["source_revision"])
-        self.assertIn("shared reset email service", payloads[1]["matches"][0]["evidence"])
-
-    def test_source_disappearance_disables_stale_delivery_and_reappearance_restores(self):
-        sync_source(self.store)
-        self.execute("DELETE FROM new_prs")
-        self.assertEqual(sync_source(self.store), 0)
-        self.assertEqual(self.store.ready("100"), [])
-        self.execute("INSERT INTO new_prs VALUES (101, 1001, 'auth/reset', 'Send password recovery links by email.', 'frank', '2026-10-01')")
-        self.assertEqual(sync_source(self.store), 1)
-        self.assertEqual(len(self.store.ready("100")), 1)
-
-    def test_candidate_disappearance_disables_stale_delivery(self):
-        sync_source(self.store)
-        self.execute("DELETE FROM dup_cg")
-        sync_source(self.store)
-        self.assertEqual(self.store.ready("100"), [])
-
-    def test_orphan_comparison_waits_for_pr_metadata(self):
-        self.add_comparison(pr_number=102)
-        self.assertEqual([payload["pr_number"] for payload in self.decisions()], [101])
-
-    def test_multiple_authors_are_rejected_instead_of_guessed(self):
-        self.execute("INSERT INTO new_prs VALUES (101, 1002, 'other', 'Other topic.', 'someone_else', '2026-10-01')")
-        with self.assertRaisesRegex(ValueError, "exactly one nonempty author"):
-            self.decisions()
-
-    def test_malformed_boolean_is_not_treated_as_truthy(self):
-        self.execute("UPDATE dupe_decision SET boolean = 2")
-        with self.assertRaisesRegex(ValueError, "integer 0 or 1"):
-            self.decisions()
-
-    def test_missing_team_tables_fail_clearly(self):
-        self.execute("DROP TABLE dupe_decision")
-        with self.assertRaisesRegex(ValueError, "missing.*dupe_decision"):
-            self.decisions()
-
-    def test_missing_required_column_fails_clearly(self):
-        self.execute("ALTER TABLE new_prs RENAME COLUMN owner TO something_else")
-        with self.assertRaisesRegex(ValueError, "missing columns: owner"):
-            self.decisions()
-
-    def test_build_only_reads_source_and_preserves_callers_transaction(self):
-        with closing(sqlite3.connect(self.path)) as connection:
-            connection.execute("BEGIN")
-            before = connection.total_changes
-            first = build_decisions(connection)
-            second = build_decisions(connection)
-            self.assertEqual(first, second)
-            self.assertEqual(connection.total_changes, before)
-            self.assertTrue(connection.in_transaction)
-
-    def test_repository_config_is_part_of_snapshot_identity(self):
-        self.assertEqual(sync_source(self.store, "team/one"), 1)
-        self.assertEqual(sync_source(self.store, "team/two"), 1)
-        payloads = self.stored_decisions()
+        payloads = self.stored()
         self.assertNotEqual(payloads[0]["decision_id"], payloads[1]["decision_id"])
-        self.assertEqual(len(self.store.ready("100")), 2)
+
+    def test_closed_or_merged_pr_stops_delivery_and_reopening_restores(self):
+        self.judge_all()
+        sync_source(self.store, REPO)
+        self.pr(9, "[TEST] SEO titles", "frank", state="merged")
+        self.assertEqual(sync_source(self.store, REPO), 0)
+        self.assertEqual(self.store.ready("100"), [])
+        self.pr(9, "[TEST] SEO titles", "frank", state="open")
+        self.assertEqual(sync_source(self.store, REPO), 1)
+        self.assertEqual(len(self.store.ready("100")), 1)
+
+    def test_feedback_view_links_back_to_watcher_decisions(self):
+        self.judge_all()
+        sync_source(self.store, REPO)
+        [decision] = self.store.ready("100")
+        self.store.mark_attempt(decision["decision_id"], "100")
+        self.store.mark_sent(decision["decision_id"], "100", "555")
+        self.store.record_reaction("555", "100", "42", "👎", True)
+        with closing(sqlite3.connect(self.path)) as connection:
+            connection.row_factory = sqlite3.Row
+            [row] = connection.execute("SELECT * FROM discord_flagger_feedback").fetchall()
+        self.assertEqual((row["pr_number"], row["head_sha"], row["base_sha"], row["is_good"]), (9, HEAD, BASE, 0))
+        self.assertEqual(json.loads(row["source_decision_keys"]), ["seo_titles/title_rewriter"])
+
+    def test_wrong_database_fails_clearly(self):
+        other = Path(self.temp.name) / "other.db"
+        Store(other)
+        with closing(sqlite3.connect(other)) as connection, self.assertRaisesRegex(ValueError, "Not a watcher database"):
+            build_decisions(connection, REPO)
 
 
 if __name__ == "__main__":

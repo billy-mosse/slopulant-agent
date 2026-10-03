@@ -14,5 +14,4 @@ data/
 *.db
 *.db-wal
 *.db-shm
-!snapshots/my_database.db
 dist/

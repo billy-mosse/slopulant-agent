@@ -9,6 +9,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .config import repository_from_env
 from .models import validate_decision
 from .store import Store
 
@@ -18,12 +19,12 @@ def main():
     parser.add_argument("--db", help="SQLite path (default: DUPCHECK_DB_PATH or data/dupcheck.sqlite3)")
     parser.add_argument("--env-file", default=".env", help="Optional local configuration file")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("init-db", help="Create the worker's tables; preserve existing team tables")
+    commands.add_parser("init-db", help="Create the worker's tables; preserve the watcher's tables")
     commands.add_parser("run", help="Connect the bot and start delivering alerts/recording reactions")
     commands.add_parser("test-connection", help="Send one labelled connection-test message, then exit")
     commands.add_parser("feedback", help="Export recorded review feedback as JSON")
-    commands.add_parser("sync-source", help="Import current decisions from the team's SQLite tables")
-    commands.add_parser("source-preview", help="Preview the team database adapter without writing or sending")
+    commands.add_parser("sync-source", help="Import current decisions from the watcher's tables")
+    commands.add_parser("source-preview", help="Preview the watcher database adapter without writing or sending")
     for command in ("ingest", "preview"):
         sub = commands.add_parser(command, help="Read a decision JSON file" if command == "ingest" else "Print the alert without sending it")
         sub.add_argument("file", type=Path)
@@ -34,8 +35,8 @@ def main():
     args = parser.parse_args()
     load_dotenv(args.env_file, override=False)
     try:
-        if args.command == "close-pr" and os.environ.get("DUPCHECK_SOURCE") == "team_sqlite":
-            raise ValueError("close-pr is for inbox mode. Team source mode follows the active PR rows maintained by your detector.")
+        if args.command == "close-pr" and os.environ.get("DUPCHECK_SOURCE") == "watcher":
+            raise ValueError("close-pr is for inbox mode. Watcher mode follows the PR state the watcher reads from GitHub.")
         if args.command in {"ingest", "preview"}:
             decision = validate_decision(json.loads(args.file.read_text(encoding="utf-8")))
             if args.command == "preview":
@@ -49,10 +50,10 @@ def main():
         if args.command == "source-preview":
             from .source import build_decisions
             with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as connection:
-                print(json.dumps(build_decisions(connection, os.environ.get("DUPCHECK_REPOSITORY", "team repository")), indent=2, ensure_ascii=False))
+                print(json.dumps(build_decisions(connection, repository_from_env()), indent=2, ensure_ascii=False))
             return
-        if args.command in {"run", "sync-source"} and os.environ.get("DUPCHECK_SOURCE") == "team_sqlite" and not path.is_file():
-            raise ValueError(f"Team database does not exist: {path}")
+        if args.command in {"run", "sync-source"} and os.environ.get("DUPCHECK_SOURCE") == "watcher" and not path.is_file():
+            raise ValueError(f"Watcher database does not exist: {path}")
         path.parent.mkdir(parents=True, exist_ok=True)
         store = Store(path)
         if args.command == "init-db":
@@ -64,7 +65,7 @@ def main():
             print(json.dumps(store.feedback_rows(), indent=2, ensure_ascii=False))
         elif args.command == "sync-source":
             from .source import sync_source
-            print(f"Imported {sync_source(store, os.environ.get('DUPCHECK_REPOSITORY', 'team repository'))} new decision snapshots")
+            print(f"Imported {sync_source(store, repository_from_env())} new decision snapshots")
         elif args.command == "close-pr":
             store.close_pr(args.repository, args.pr_number, args.state)
             print(f"Marked {args.repository}#{args.pr_number} {args.state}")

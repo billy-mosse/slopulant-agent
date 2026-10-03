@@ -10,7 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 from . import classifier, config, db, github, gitrepo, topics
-from .main import record_history, setup_logging
+from .history import record_history
+from .main import setup_logging
 
 
 def analyse(conn, base_sha, head_sha):

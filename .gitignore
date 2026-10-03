@@ -9,3 +9,4 @@ data-*/
 .gh_key
 .claude/
 docs/deck/comments-*.json
+.venv/

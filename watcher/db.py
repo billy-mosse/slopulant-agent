@@ -127,8 +127,9 @@ CREATE TABLE IF NOT EXISTS decisions (
     is_duplicate INTEGER NOT NULL,
     confidence  REAL    NOT NULL,
     reason      TEXT    NOT NULL,
-    classifier  TEXT    NOT NULL,
+    classifier  TEXT    NOT NULL,  -- CLM: clm_dupe.decision.VERSION; "dataflow" for shared-table links
     ts          REAL    NOT NULL,
+    threshold   REAL,              -- CLM: is_duplicate = confidence >= threshold (NULL otherwise)
     PRIMARY KEY (pr_number, head_sha, base_sha, pr_folder, repo_id)
 );
 
@@ -169,6 +170,9 @@ def connect():
             conn.execute(f"DROP TABLE IF EXISTS {table}")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.executescript(SCHEMA)
+    # Additive migrations (no SCHEMA_VERSION bump, so cached topics survive).
+    if "threshold" not in {r["name"] for r in conn.execute("PRAGMA table_info(decisions)")}:
+        conn.execute("ALTER TABLE decisions ADD COLUMN threshold REAL")
     return conn
 
 
@@ -225,8 +229,10 @@ def add_event(conn, kind, message, pr_number=None, **data):
 
 def put_decisions(conn, rows):
     conn.executemany(
-        "INSERT OR REPLACE INTO decisions VALUES (:pr_number, :head_sha, :base_sha, :pr_folder, :repo_id, "
-        ":relation, :is_duplicate, :confidence, :reason, :classifier, :ts)", rows)
+        "INSERT OR REPLACE INTO decisions (pr_number, head_sha, base_sha, pr_folder, repo_id, relation, "
+        "is_duplicate, confidence, reason, classifier, ts, threshold) VALUES (:pr_number, :head_sha, :base_sha, "
+        ":pr_folder, :repo_id, :relation, :is_duplicate, :confidence, :reason, :classifier, :ts, :threshold)",
+        [{"threshold": None, **r} for r in rows])
     conn.commit()
 
 

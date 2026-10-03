@@ -14,7 +14,7 @@ class Config:
     sync_interval: float = 60.0
     reviewer_ids: frozenset[int] = frozenset()
     source_mode: str = "inbox"
-    source_repository: str = "team repository"
+    source_repository: str = "billy-mosse/slopulant-monorepo"
 
     @classmethod
     def from_env(cls):
@@ -35,9 +35,15 @@ class Config:
         if not channel_id and not name:
             raise ValueError("Set DISCORD_CHANNEL_ID or DISCORD_CHANNEL_NAME")
         mode = os.environ.get("DUPCHECK_SOURCE", "inbox").strip()
-        if mode not in {"inbox", "team_sqlite"}:
-            raise ValueError("DUPCHECK_SOURCE must be inbox or team_sqlite")
-        repository = os.environ.get("DUPCHECK_REPOSITORY", "team repository").strip()
+        if mode not in {"inbox", "watcher"}:
+            raise ValueError("DUPCHECK_SOURCE must be inbox or watcher")
+        repository = repository_from_env()
         if not repository or len(repository) > 256:
             raise ValueError("DUPCHECK_REPOSITORY must be a nonempty repository name")
         return cls(token, channel_id, name, poll, sync, reviewer_ids, mode, repository)
+
+
+def repository_from_env() -> str:
+    """The monorepo the watcher analyses (same variable as the watcher's config)."""
+    return (os.environ.get("DUPCHECK_REPOSITORY") or os.environ.get("GITHUB_REPO")
+            or "billy-mosse/slopulant-monorepo").strip()

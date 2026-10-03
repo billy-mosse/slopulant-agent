@@ -128,7 +128,7 @@ class DiscordWorker(discord.Client):
     async def poll(self):
         try:
             await self.resolve_channel()
-            if self.config.source_mode == "team_sqlite":
+            if self.config.source_mode == "watcher":
                 from .source import sync_source
                 imported = await asyncio.to_thread(sync_source, self.store, self.config.source_repository)
                 if imported:

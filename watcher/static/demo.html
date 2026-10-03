@@ -105,7 +105,7 @@
     <button class="btn" id="merge-pr" disabled>Merge</button>
     <button class="btn danger" id="reset">Reset demo</button>
     <span class="sep"></span>
-    <button class="btn" id="present" title="Opens GitHub on the right half of the screen; it follows the pipeline">Present side by side</button>
+    <button class="btn" id="present" title="Opens GitHub on the right half of the screen; it follows the pipeline (PR → Discord alert → merge)">Present side by side</button>
     <a class="btn" href="/" style="text-decoration:none">Team view</a>
   </div>
 </header>
@@ -114,7 +114,7 @@
   <section class="panel">
     <div class="panel-head"><h2>Pipeline</h2><span class="meta" id="focus-label">No PR yet. Open one above.</span></div>
     <div class="diagram">
-      <svg id="svg" viewBox="0 0 1120 470" role="img" aria-label="Live pipeline: GitHub PR, OpenClaw scheduler, PR detection, topic extraction, candidate generation, classifier, OpenClaw agent, PR comment, and the merge path that re-indexes main.">
+      <svg id="svg" viewBox="0 0 1120 470" role="img" aria-label="Live pipeline: GitHub PR, OpenClaw scheduler, PR detection, topic extraction, candidate generation, CLM classifier, OpenClaw agent, Discord alert, reviewer feedback, and the merge path that re-indexes main.">
         <defs>
           <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a3"/></marker>
         </defs>
@@ -156,9 +156,10 @@ const NODES = [
   {id: "detect", x: 460, y: 30, title: "Detect PR", sub: "new commit queued"},
   {id: "topics", x: 680, y: 30, title: "Topic extraction", sub: "Qwen3-Coder-Next"},
   {id: "candidates", x: 900, y: 30, title: "Candidate generation", sub: "embeddings + keywords + tables"},
-  {id: "classifier", x: 900, y: 190, title: "Classifier", sub: "dummy LLM · CLM slot"},
+  {id: "classifier", x: 900, y: 190, title: "CLM classifier", sub: "CLM-v0.1-8B · same problem?"},
   {id: "agent", x: 680, y: 190, title: "OpenClaw agent", sub: "writes the note"},
-  {id: "comment", x: 460, y: 190, title: "[oc] PR comment", sub: "posted / updated on GitHub"},
+  {id: "discord", x: 460, y: 190, title: "Discord alert", sub: "#slop-factory"},
+  {id: "feedback", x: 240, y: 190, title: "Reviewer feedback", sub: "👍 / 👎 on the alert"},
   {id: "merge", x: 20, y: 350, title: "Merge", sub: "PR merged into main"},
   {id: "reindex", x: 240, y: 350, title: "Re-index main", sub: "topic sets reused by tree hash"},
 ];
@@ -169,8 +170,8 @@ const EDGES = [
   {from: "topics", to: "candidates", d: "M860,76 H898"},
   {from: "candidates", to: "classifier", d: "M990,122 V188", label: "candidates"},
   {from: "classifier", to: "agent", d: "M900,236 H862"},
-  {from: "agent", to: "comment", d: "M680,236 H642"},
-  {from: "comment", to: "github", d: "M460,236 H110 V124", label: "comment on the PR"},
+  {from: "agent", to: "discord", d: "M680,236 H642"},
+  {from: "discord", to: "feedback", d: "M460,236 H422"},
   {from: "github", to: "merge", d: "M60,124 V348", label: "merge"},
   {from: "merge", to: "reindex", d: "M200,396 H238"},
 ];
@@ -187,7 +188,6 @@ function drawStatic() {
 function labelPos(d) {
   const nums = d.match(/-?\d+(\.\d+)?/g).map(Number);
   if (d.includes("V") && !d.includes("H")) return [nums[0] + 8, (nums[1] + nums[2]) / 2];
-  if (d.startsWith("M460,236")) return [250, 228];
   if (d.startsWith("M60,124")) return [68, 240];
   return [(nums[0] + nums[2]) / 2 - 12, nums[1] - 7];
 }
@@ -205,7 +205,7 @@ function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + 
 
 // ---- state from events ---------------------------------------------------------
 let P = null, lastSeenId = null, focusPr = null;
-const STAGES = ["detect", "topics", "candidates", "classifier", "agent", "comment"];
+const STAGES = ["detect", "topics", "candidates", "classifier", "agent"];  // discord + feedback come from p.discord
 
 function compute(p) {
   const now = p.now, states = {}, labels = {}, details = {};
@@ -227,6 +227,19 @@ function compute(p) {
       else { states[st] = "done"; labels[st] = "done"; details[st] = stageDetail(st, last); }
     });
     states.github = "done"; labels.github = p.focus.state; details.github = `#${pr} ${p.focus.branch}`;
+    const dc = p.discord;  // the Discord worker's delivery + reactions for this PR commit
+    if (dc && dc.status === "sent") {
+      states.discord = "done"; labels.discord = "posted"; details.discord = dc.sent_at ? `at ${dc.sent_at.slice(11, 16)} UTC` : "";
+      const votes = dc.likes + dc.dislikes;
+      states.feedback = votes ? "done" : "idle"; labels.feedback = votes ? `${votes} review${votes === 1 ? "" : "s"}` : "waiting";
+      details.feedback = `👍 ${dc.likes} · 👎 ${dc.dislikes}`;
+    } else if (dc && dc.status === "clean") {
+      states.discord = "done"; labels.discord = "no alert"; details.discord = "no duplicates";
+    } else if (dc && dc.status === "failed") {
+      states.discord = "error"; labels.discord = "retrying"; details.discord = dc.error || "send failed";
+    } else if (dc && dc.status === "pending") {
+      states.discord = "running"; labels.discord = "sending"; details.discord = "";
+    }
     const err = p.events.find((e) => e.kind === "error" && e.pr_number === pr && (!lastDetect || e.id > lastDetect.id));
     if (err) { const st = STAGES.find((s) => states[s] === "running") || "detect"; states[st] = "error"; labels[st] = "error"; details[st] = err.message; }
   }
@@ -248,7 +261,6 @@ function stageDetail(st, e) {
   if (st === "classifier" && d.skipped) return "nothing to judge";
   if (st === "classifier") { const dups = (d.verdicts || []).filter((v) => ["duplicate", "partial"].includes(v.relation)).length; return `${dups} overlap${dups === 1 ? "" : "s"}${s}`; }
   if (st === "agent") return `${d.author_by === "fallback" ? "template" : "agent note"}${s}`;
-  if (st === "comment") return d.changed ? `posted${s}` : `unchanged${s}`;
   return "";
 }
 
@@ -271,10 +283,13 @@ function render(p) {
       <span>${e.pr_number ? `<b>#${e.pr_number}</b> ` : ""}${esc(trunc(e.message, 140))}</span></li>`;
   }).join("") || `<li class="empty">Nothing yet.</li>`;
   // result
-  const doneComment = states.comment === "done" || states.agent === "done";
-  if (p.focus && (p.findings.length || doneComment)) {
-    $("#result-meta").textContent = `PR #${p.focus.number} · candidates: top ${p.top_k} ≥ ${p.floor} + shared tables`;
-    $("#result").innerHTML = (p.alert ? `<div style="height:10px"></div><div class="note">${esc(p.alert.summary)}${p.alert.comment_url ? ` <a href="${esc(p.alert.comment_url)}" target="_blank" rel="noopener">View on GitHub</a>` : ""}</div>` : "") +
+  const judged = states.classifier === "done" || states.agent === "done";
+  if (p.focus && (p.findings.length || judged)) {
+    $("#result-meta").textContent = `PR #${p.focus.number} · candidates: top ${p.top_k} ≥ ${p.floor} + shared tables · ${p.classifier}`;
+    const dc = p.discord, sent = dc && dc.status === "sent";
+    const link = sent ? (dc.url ? ` <a href="${esc(dc.url)}" target="_blank" rel="noopener">View in Discord</a>` : " <span class=\"meta\">posted to Discord</span>") +
+      ` <span class="meta">👍 ${dc.likes} · 👎 ${dc.dislikes}</span>` : "";
+    $("#result").innerHTML = (p.alert ? `<div style="height:10px"></div><div class="note">${esc(p.alert.summary)}${link}</div>` : "") +
       `<div class="findings">${p.findings.map((f) => `<div class="finding"><span><span class="rel ${esc(f.relation)}">${esc(f.relation)}</span> <span class="meta">${(+f.confidence).toFixed(2)}</span><div><b>${esc(f.repo_id)}</b></div></span><span class="meta">${esc(f.reason)}</span></div>`).join("") || '<div class="meta">No candidates: nothing on main overlaps this PR.</div>'}</div>`;
   } else if (!p.focus) {
     $("#result").innerHTML = `<div class="empty">Results appear here when the PR has been analysed.</div>`; $("#result-meta").textContent = "";
@@ -301,10 +316,6 @@ function follow(url, label) {
   }
   ghStatus();
 }
-function bust(url) {  // reload the PR page so a fresh comment is there, then jump to it
-  const [base, hash] = url.split("#");
-  return `${base}${base.includes("?") ? "&" : "?"}oc=${Date.now()}${hash ? "#" + hash : ""}`;
-}
 function opened(w, what) {
   // window.open returns null when Chrome blocks the pop-up; some setups return a window that closes at once.
   if (!w) { toast(`Chrome blocked the ${what} window. Allow pop-ups for 127.0.0.1:8765 (Chrome menu → Settings → Privacy and security → Site settings → Pop-ups and redirects → Allowed), then click again.`, 12000); return false; }
@@ -323,12 +334,18 @@ function openGitHub() {
 $("#present").onclick = openGitHub;
 
 // react to new events (only those after the page loaded)
+let followedDiscord = null;
 function onEvents(p) {
+  // the Discord alert isn't an event (the Discord worker writes its own tables): follow it once it's posted
+  const dc = p.discord;
+  if (dc && dc.status === "sent" && dc.url && dc.message_id !== followedDiscord) {
+    if (followedDiscord !== null || lastSeenId !== null) follow(dc.url, `Discord · alert for PR #${p.focus.number}`);
+    followedDiscord = dc.message_id;
+  }
   const fresh = p.events.filter((e) => lastSeenId !== null && e.id > lastSeenId).sort((a, b) => a.id - b.id);
   lastSeenId = Math.max(lastSeenId ?? 0, ...p.events.map((e) => e.id), 0);
   for (const e of fresh) {
     if (e.kind === "stage" && e.data.stage === "detect" && e.data.url) follow(e.data.url, `PR #${e.pr_number}`);
-    if (e.kind === "stage" && e.data.stage === "comment" && e.data.status === "end" && e.data.url) follow(bust(e.data.url), `PR #${e.pr_number} · [oc] comment`);
     if (e.kind === "pr_merged") follow(`https://github.com/${p.repo}/pull/${e.pr_number}`, `PR #${e.pr_number} · merged`);
     if (e.kind === "stage" && e.data.stage === "reindex" && e.data.status === "end" && (e.data.changed || []).length) follow(`https://github.com/${p.repo}/commits/main`, "main · commits");
     if (e.kind === "reset") follow(`https://github.com/${p.repo}/commits/main`, "main · after reset");

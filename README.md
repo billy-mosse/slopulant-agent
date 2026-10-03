@@ -13,6 +13,21 @@ system ("repo"). Nothing in this repo should be committed there, and vice versa.
 Architecture diagram: [`docs/architecture.html`](docs/architecture.html). Pitch deck:
 [`docs/deck/`](docs/deck/).
 
+Four processes share **one SQLite database**, `data/watcher.db`:
+
+```
+GitHub PR ─► watcher tick (OpenClaw cron, every 30 s)    Qwen3-Coder-Next: topics · MiniLM: candidates
+          ─► CLM worker (watcher/clm_worker.py)            CLM-v0.1-8B: is it a duplicate?  + OpenClaw note
+          ─► Discord worker (discord_worker/)             posts the alert to #slop-factory, records 👍/👎
+          ─► dashboards (watcher/web.py)                  live pipeline + team view, read-only
+```
+
+| Stage | Writes | Process |
+|---|---|---|
+| topics, PRs, candidates | `folders`, `topics`, `prs`, `pr_queue`, `scores` (`candidate = 1`) | watcher tick |
+| verdicts (`is_duplicate`), the note | `decisions` (+ CLM score, threshold, version), `alerts`, `history`, `kv` `clm_finished:<head>:<base>` | CLM worker |
+| delivery, reviews | `discord_decisions`, `discord_notifications`, `discord_feedback`, view `discord_flagger_feedback` | Discord worker |
+
 One **tick** (`python -m watcher.main --once`), run every 30 s by an OpenClaw scheduled
 job. Ticks never overlap: each takes an exclusive lock, and queue items are claimed, so
 a crashed run's items are retried.
@@ -33,14 +48,22 @@ a crashed run's items are retried.
    pair gives the score, `mean(description cosine, keyword TF-IDF)`. Candidates are
    every shared-table link (upstream/downstream), plus the top `TOP_K` (5) folders
    scoring ≥ `MIN_CANDIDATE_SCORE` (0.38).
-4. **Classifier** (`watcher/classifier.py`) judges each candidate:
-   duplicate / partial / upstream / downstream / unrelated. It's a dummy LLM
-   classifier now; the CLM classifier replaces `classify()`. Eval data for it:
-   [`for_jesse_readme.md`](for_jesse_readme.md).
-5. **Alert.** The OpenClaw agent `watcher` writes a short note to the PR author. The
-   watcher posts it as a single `[oc]` comment on the PR, together with links, owners
-   and verdicts built from data. The comment is replaced with a fresh one on every
-   re-score (`ALERT_COMMENT_MODE=repost`), so it's always at the bottom of the PR.
+4. **CLM classifier** (`watcher/clm_worker.py`, its own process) judges each candidate
+   one pair at a time: shared-table links are upstream/downstream from the tables;
+   every other pair asks CLM-v0.1-8B "do these two systems solve the same problem?" and
+   is a duplicate at p ≥ 0.19. The rule and its calibration live in
+   [`clm_dupe/`](clm_dupe/README.md). Verdicts written by any other classifier (or an
+   older CLM version) are re-judged.
+5. **Note.** When a PR commit has a duplicate, the OpenClaw agent `watcher` writes a
+   short note to the author (template fallback without OpenClaw).
+6. **Discord alert.** The [Discord worker](discord_worker/README.md) posts the note with
+   the PR link, owners, matched systems and the CLM/similarity evidence to
+   `#slop-factory`, and records 👍/👎 reactions as reviews.
+7. **Feedback.** `python -m eval.export_feedback` turns the reviews into labelled pairs
+   (label, CLM score, threshold, similarity) for re-picking the threshold.
+
+`CLASSIFIER=1` brings back the old in-tick dummy LLM classifier (and, with
+`POST_GITHUB_COMMENTS=1`, the `[oc]` PR comment) for a laptop without the CLM stack.
 
 Every stage records start/end events for the live view. Each analysis is also written
 to a `history` table for the team view. State lives in SQLite at `data/watcher.db`
@@ -61,7 +84,7 @@ the same process, for laptop use).
   stage runs, plus a timeline and the result. Open a test PR, merge it, or **Reset
   demo**: that force-pushes `main` back to the saved baseline and restores the
   baseline's PRs. **Present side by side** opens GitHub on the right half of the
-  screen; it follows the pipeline (PR → `[oc]` comment → merge → commits). Chrome may
+  screen; it follows the pipeline (PR → Discord alert → merge → commits). Chrome may
   ask to allow pop-ups the first time.
 
 ## Evaluation
@@ -129,15 +152,19 @@ echo "sk-or-..." > .api_key                # OpenRouter key (gitignored)
 python -m watcher.web --watcher            # dashboards + watcher loop: http://localhost:8765
 ```
 
-The first run indexes `main` (41 folders, ~40 s on OpenRouter). Without OpenClaw the
-note in the PR comment falls back to a template; everything else works.
+The first run indexes `main` (41 folders, ~40 s on OpenRouter). Without the CLM stack,
+run with `CLASSIFIER=1` (dummy LLM classifier in the tick; add `POST_GITHUB_COMMENTS=1`
+for the `[oc]` PR comment). Without OpenClaw the note falls back to a template.
 
-### On the GB10 box (local model + OpenClaw), as deployed
+### On the GB10 box (local models + OpenClaw), as deployed
 
-- **Code:** `~/slopulant-watcher` (synced from this repo), Python from a venv with
-  `requirements.txt`.
-- **Model:** Ollama serving `coder-next:latest` (Qwen3-Coder-Next Q6) on :11434.
-- **`.env`:**
+Everything runs from this checkout, `~/slopulant-agent`.
+
+- **Models:** Ollama serving `coder-next:latest` (Qwen3-Coder-Next Q6) on :11434; the
+  CLM encoder (Qwen3-8B GGUF, llama.cpp) on :8090, started by `scripts/start_clm.sh`.
+- **Venvs:** `.venv` (watcher, `requirements.txt`), `~/clm-venv` (CLM worker,
+  `clm_dupe/requirements.txt`), `discord_worker/.venv` (`discord_worker/requirements.txt`).
+- **`.env`** (repo root, gitignored):
   ```
   LLM_PROFILE=local
   LLM_CACHE=0
@@ -147,21 +174,26 @@ note in the PR comment falls back to a template; everything else works.
   OPENCLAW_BIN=/home/dell/.local/opt/node-v24.21.0-linux-arm64/bin/openclaw
   OPENCLAW_AGENT=watcher
   PROGRESS=0
+  DISCORD_GUILD_ID=<server id, for "View in Discord" links>
   ```
-- **OpenClaw:**
-  - Create the agent once: `openclaw agents add watcher --non-interactive --workspace ~/.openclaw/workspace-watcher --model ollama/coder-next:latest`
-  - Register the scheduled job (it runs one tick every 30 s; ticks never overlap):
-    ```sh
-    openclaw cron add --name slopulant-watcher --every 30s --no-deliver --timeout-seconds 3600 \
-      --command "cd ~/slopulant-watcher && <venv>/bin/python -m watcher.main --once"
-    ```
+- **Watcher (OpenClaw):** `deploy/openclaw_setup.sh` creates the `watcher` agent and
+  the `slopulant-watcher` job (one tick every 30 s from this repo). Idempotent.
+- **CLM worker:** systemd user unit `deploy/slopulant-clm.service` (starts the CLM
+  servers first, so they come back after a reboot).
+- **Discord worker:** `discord_worker/deploy/dupcheck-discord.service`, with
+  `discord_worker/.env` (`DUPCHECK_SOURCE=watcher`, `DUPCHECK_DB_PATH=../data/watcher.db`).
+  ```sh
+  cp deploy/slopulant-clm.service discord_worker/deploy/dupcheck-discord.service ~/.config/systemd/user/
+  systemctl --user daemon-reload && systemctl --user enable --now slopulant-clm dupcheck-discord
+  ```
 - **Dashboards:** `python -m watcher.web --host 127.0.0.1 --port 8765`. From a laptop,
   tunnel with `ssh -L 8765:127.0.0.1:8765 dell@<gb10>` and open
   http://127.0.0.1:8765/demo.
 - **Demo setup:**
   - Open test PRs from `/demo`; the test branches are listed there.
   - Save the baseline once from the **Data** tab, so **Reset demo** knows where to return.
-  - `python -m watcher.backfill` analyses all test branches into the team view's history.
+  - `python -m watcher.backfill` analyses all test branches into the team view's history
+    (it still uses the dummy LLM classifier).
 
 ### Other commands
 
@@ -169,6 +201,8 @@ note in the PR comment falls back to a template; everything else works.
 python -m watcher.show               # latest candidates per PR (--all for every pair)
 python -m eval.run_eval              # candidate-generator recall@K on the test PRs
 python -m eval.export_for_jesse      # eval SQLite for the classifier (see for_jesse_readme.md)
+python -m eval.export_feedback       # Discord 👍/👎 reviews as labelled CLM pairs (CSV)
+~/clm-venv/bin/python -m watcher.clm_worker --once   # one CLM pass (env vars: clm_dupe/README.md)
 ```
 
 | Setting | Default | What it does |
@@ -182,12 +216,16 @@ python -m eval.export_for_jesse      # eval SQLite for the classifier (see for_j
 | `LLM_CONCURRENCY` | `8` | parallel LLM calls |
 | `LLM_CACHE` | `1` | answer identical LLM requests from `data/llm_cache.json` (`0` for real timings) |
 | `REEXTRACT_PR_TOPICS` | `1` | always re-extract a PR's folders (`main` stays cached) |
-| `CLASSIFIER` | `1` | run the classifier on candidates |
+| `CLASSIFIER` | `0` | `1`: dummy LLM classifier inside the tick instead of the CLM worker |
+| `CLM_EMB_URL`, `CLM_POLL_SECONDS` | `http://127.0.0.1:8090/v1/embeddings`, `5` | CLM worker: encoder, poll interval |
+| `DISCORD_GUILD_ID` | | Discord server id, for links to alerts in the dashboards |
 | `OPENCLAW_BIN`, `OPENCLAW_AGENT` | `openclaw`, `main` | agent that writes the note |
-| `POST_GITHUB_COMMENTS`, `ALERT_COMMENT_MODE` | `1`, `repost` | post the `[oc]` comment; `repost` keeps it at the bottom, `edit` updates in place |
+| `POST_GITHUB_COMMENTS`, `ALERT_COMMENT_MODE` | `0`, `repost` | with `CLASSIFIER=1`: post the `[oc]` PR comment; `repost` keeps it at the bottom, `edit` updates in place |
 
 ## Discord alerts and feedback
 
-The separate [Discord worker](discord_worker/README.md) posts duplicate alerts, records 👍/👎 reviews, and stores per-message like/dislike totals in SQLite. It includes its own dependencies, tests, examples, and a snapshot of the GB10's shared database; see its README for setup.
-
-The current `team_sqlite` adapter reads `Commited`, `new_prs`, `dup_cg`, and `dupe_decision`. This differs from the watcher's `data/watcher.db` schema, so the watcher is not automatically connected to it. A detector can also send structured decisions through the worker's JSON inbox API. The watcher commands above remain the way to run the watcher; run the Discord worker as a separate component.
+The [Discord worker](discord_worker/README.md) reads the same `data/watcher.db`: for each
+PR's latest analysed commit it waits until the CLM worker has finished it, then posts one
+alert per duplicate commit and records 👍/👎 reviews. Reviews link back to the judged pairs
+through the `discord_flagger_feedback` view (`pr_number`, `head_sha`, `base_sha`,
+`source_decision_keys`); `python -m eval.export_feedback` exports them.

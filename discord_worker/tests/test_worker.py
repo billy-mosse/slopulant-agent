@@ -107,13 +107,13 @@ class ContractTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     Config.from_env()
 
-    def test_close_pr_cannot_silently_reopen_in_team_source_mode(self):
+    def test_close_pr_is_rejected_in_watcher_source_mode(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "unused.sqlite3"
             result = subprocess.run(
                 [sys.executable, "-m", "dupcheck_discord", "--env-file", str(Path(directory) / "missing.env"),
-                 "--db", str(path), "close-pr", "team repository", "101"],
-                env={**os.environ, "DUPCHECK_SOURCE": "team_sqlite"}, capture_output=True, text=True,
+                 "--db", str(path), "close-pr", "acme/monorepo", "101"],
+                env={**os.environ, "DUPCHECK_SOURCE": "watcher"}, capture_output=True, text=True,
             )
             self.assertEqual(result.returncode, 2)
             self.assertIn("close-pr is for inbox mode", result.stderr)

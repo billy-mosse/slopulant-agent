@@ -12,7 +12,7 @@ CLM classifier will replace. Keep the interface:
 """
 import json
 
-from . import config, topics
+from . import config
 
 NAME = "llm-dummy-v1"
 RELATIONS = ("duplicate", "partial", "upstream", "downstream", "unrelated")
@@ -53,6 +53,7 @@ def classify(pr, candidate, signals):
         old_keywords=fmt(candidate["keywords"][:15]), old_inputs=fmt(candidate["inputs"]), old_outputs=fmt(candidate["outputs"]),
         dataflow=signals.get("dataflow") or "none",
     )
+    from . import topics  # lazy: keeps this module importable without sentence-transformers
     parsed = topics._json(topics._chat(prompt, max_tokens=200)) or {}
     relation = str(parsed.get("relation", "")).strip().lower()
     if relation not in RELATIONS:

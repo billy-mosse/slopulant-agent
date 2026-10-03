@@ -26,8 +26,9 @@ GITHUB_REPO = os.environ.get("GITHUB_REPO", "billy-mosse/slopulant-monorepo")
 # user's gh login is never used.
 GITHUB_TOKEN_FILE = Path(os.environ.get("GITHUB_TOKEN_FILE", Path.home() / ".slopulant" / "github_token"))
 ALLOW_GH_FALLBACK = os.environ.get("ALLOW_GH_FALLBACK", "1") != "0"
-# Post/update the "[oc]" alert comment on PRs.
-POST_GITHUB_COMMENTS = os.environ.get("POST_GITHUB_COMMENTS", "1") != "0"
+# Post/update the "[oc]" alert comment on PRs. Off by default: alerts go to Discord
+# (discord_worker/). Only used with the inline dummy classifier (CLASSIFIER=1).
+POST_GITHUB_COMMENTS = os.environ.get("POST_GITHUB_COMMENTS", "0") != "0"
 # repost: replace our previous "[oc]" comment with a new one (always at the bottom of the PR);
 # edit: update it in place (it stays where it was first posted).
 ALERT_COMMENT_MODE = os.environ.get("ALERT_COMMENT_MODE", "repost")
@@ -125,9 +126,18 @@ MAX_FILE_BYTES = 400_000
 # 32k-token context with the prompt and the JSON reply.
 CHUNK_CHARS = int(os.environ.get("CHUNK_CHARS", "40000"))
 
-# Dummy duplicate classifier (to be replaced by the CLM classifier): one LLM call
-# per candidate. CLASSIFIER=0 to skip.
-CLASSIFIER = os.environ.get("CLASSIFIER", "1") != "0"
+# Inline dummy LLM classifier (one call per candidate, inside the watcher tick).
+# Off by default: watcher.clm_worker judges candidates with CLM. CLASSIFIER=1 brings
+# back the inline path (laptop demo without the CLM stack).
+CLASSIFIER = os.environ.get("CLASSIFIER", "0") != "0"
+
+# CLM worker (watcher/clm_worker.py, runs in ~/clm-venv). The rule itself (prompt,
+# threshold, version) lives in clm_dupe/decision.py.
+CLM_EMB_URL = os.environ.get("CLM_EMB_URL", "http://127.0.0.1:8090/v1/embeddings")
+CLM_POLL_SECONDS = float(os.environ.get("CLM_POLL_SECONDS", "5"))
+
+# Discord: links to alerts in the dashboards (https://discord.com/channels/<guild>/<channel>/<message>).
+DISCORD_GUILD_ID = os.environ.get("DISCORD_GUILD_ID", "")
 
 # OpenClaw: the agent that writes the alert. If the CLI isn't available (e.g. on a
 # laptop) the alert falls back to a deterministic summary.

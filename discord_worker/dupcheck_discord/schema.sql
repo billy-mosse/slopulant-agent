@@ -95,12 +95,17 @@ BEGIN
     WHERE decision_id = OLD.decision_id AND channel_id = OLD.channel_id;
 END;
 
--- A bridge for the flagger: source IDs remain an aggregate list for one alert.
+-- A bridge back to the watcher's tables: one review covers the whole alert, i.e. every
+-- (pr_folder, repo_id) pair in source_decision_keys at (pr_number, head_sha, base_sha).
 -- A null vote means neither reaction or opposing reactions, not a negative label.
-CREATE VIEW IF NOT EXISTS discord_flagger_feedback AS
+-- Dropped and recreated on every start so its columns follow this file.
+DROP VIEW IF EXISTS discord_flagger_feedback;
+CREATE VIEW discord_flagger_feedback AS
 SELECT f.decision_id, f.user_id, f.channel_id, n.message_id, f.vote,
        CASE WHEN f.vote = 1 THEN 1 WHEN f.vote = -1 THEN 0 ELSE NULL END AS is_good,
        d.repository, d.pr_number, NULLIF(d.head_sha, '') AS head_sha,
+       json_extract(d.payload_json, '$.base_sha') AS base_sha,
+       json_extract(d.payload_json, '$.source_decision_keys') AS source_decision_keys,
        json_extract(d.payload_json, '$.source_dup_ids') AS source_dup_ids,
        json_extract(d.payload_json, '$.source_revision') AS source_revision,
        d.payload_json, f.created_at, f.updated_at

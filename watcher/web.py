@@ -6,6 +6,7 @@ git history graph, activity log and a database browser.
 """
 import argparse
 import json
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -15,12 +16,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from clm_dupe import decision as clm_decision
+
 from . import config, db, demo, gitrepo
 from . import main as watcher
 
 STATIC = Path(__file__).parent / "static"
 PORT = 8765
-DB_TABLES = ("history", "prs", "pr_queue", "folders", "topics", "scores", "decisions", "alerts", "events", "kv")
+DB_TABLES = ("history", "prs", "pr_queue", "folders", "topics", "scores", "decisions", "alerts", "events", "kv",
+             "discord_decisions", "discord_notifications", "discord_feedback")  # discord_*: the Discord worker's
 BLOB_COLUMNS = {"embedding", "func_embeddings"}
 _catalog_cache = {"at": 0, "data": None}
 
@@ -67,6 +71,7 @@ def state():
                 pass
         alert = conn.execute("SELECT * FROM alerts WHERE pr_number = ? ORDER BY ts DESC LIMIT 1", (pr["number"],)).fetchone()
         pr["alert"] = dict(alert) if alert else None
+        pr["discord"] = discord_alert(conn, pr["number"], scores[0]["head_sha"] if scores else pr["head_sha"])
         pr["folders"] = list(folders.values())
         pr["commit_author"] = gitrepo.commit_author(pr["head_sha"])
         prs.append(pr)
@@ -155,7 +160,35 @@ def table(name, limit=50, offset=0, q=None):
 
 def tables():
     conn = db.connect()
-    return [{"name": t, "count": conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0]} for t in DB_TABLES]
+    present = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    return [{"name": t, "count": conn.execute(f"SELECT count(*) FROM {t}").fetchone()[0]} for t in DB_TABLES if t in present]
+
+
+def discord_alert(conn, pr_number, head_sha):
+    """The Discord alert for a PR commit, from the Discord worker's tables in the same database:
+    {status: pending | sent | failed | clean | waiting, url, likes, dislikes, sent_at}, or None."""
+    try:
+        row = conn.execute(
+            """SELECT d.status AS decision_status, d.is_duplicate, n.status, n.channel_id, n.message_id,
+                      n.like_count, n.dislike_count, n.sent_at, n.last_error
+               FROM discord_decisions d LEFT JOIN discord_notifications n ON n.decision_id = d.decision_id
+               WHERE d.repository = ? AND d.pr_number = ? AND d.head_sha = ?
+               ORDER BY n.status = 'sent' DESC, d.rowid DESC LIMIT 1""",
+            (config.GITHUB_REPO, pr_number, head_sha)).fetchone()
+    except sqlite3.OperationalError:  # the Discord worker hasn't created its tables yet
+        return None
+    if row is None:
+        return None
+    if row["decision_status"] != "completed":
+        status = "waiting"
+    elif not row["is_duplicate"]:
+        status = "clean"
+    else:
+        status = row["status"] or "pending"
+    url = (f"https://discord.com/channels/{config.DISCORD_GUILD_ID}/{row['channel_id']}/{row['message_id']}"
+           if config.DISCORD_GUILD_ID and row["message_id"] else None)
+    return {"status": status, "url": url, "message_id": row["message_id"], "likes": row["like_count"] or 0,
+            "dislikes": row["dislike_count"] or 0, "sent_at": row["sent_at"], "error": row["last_error"]}
 
 
 def events(limit=80):
@@ -211,6 +244,7 @@ def overview():
     for a in analyses:
         a["folders"] = json.loads(a["folders"]); a["findings"] = json.loads(a["findings"])
         a["author_team_name"] = name(a["author_team"])
+        a["discord"] = discord_alert(conn, a["pr_number"], a["head_sha"]) if a["pr_number"] else None
         for f in a["findings"]:
             f["owner_team_name"] = name(f["owner_team"])
     overl = lambda a: [f for f in a["findings"] if f["relation"] in ("duplicate", "partial")]
@@ -252,6 +286,8 @@ def overview():
     }
 
 
+CLASSIFIER_LABEL = (f"CLM-v0.1-8B · p ≥ {clm_decision.THRESHOLD}" if not config.CLASSIFIER
+                    else "dummy LLM classifier (CLASSIFIER=1)")
 PIPELINE_KINDS = ("stage", "pr_opened", "pr_merged", "pr_closed", "reset", "action", "error")
 
 
@@ -269,22 +305,24 @@ def pipeline():
     findings = []
     if focus:
         findings = _rows(conn.execute(
-            "SELECT d.repo_id, d.relation, d.confidence, d.reason, d.pr_folder FROM decisions d "
-            "WHERE d.pr_number = ? AND d.ts = (SELECT max(ts) FROM decisions WHERE pr_number = ?) ORDER BY d.confidence DESC",
-            (focus, focus)))
+            "SELECT d.repo_id, d.relation, d.confidence, d.reason, d.pr_folder, d.is_duplicate FROM decisions d "
+            "JOIN latest_scores s USING (pr_number, head_sha, base_sha, pr_folder, repo_id) "
+            "WHERE d.pr_number = ? ORDER BY d.is_duplicate DESC, d.confidence DESC",
+            (focus,)))
         for f in findings:
             f["owner"] = None
     alert = conn.execute("SELECT summary, comment_url, author_by FROM alerts WHERE pr_number = ? ORDER BY ts DESC LIMIT 1",
                          (focus,)).fetchone() if focus else None
-    focus_pr = conn.execute("SELECT number, title, branch, url, state FROM prs WHERE number = ?", (focus,)).fetchone() if focus else None
+    focus_pr = conn.execute("SELECT number, title, branch, url, state, head_sha FROM prs WHERE number = ?", (focus,)).fetchone() if focus else None
+    discord = discord_alert(conn, focus, focus_pr["head_sha"]) if focus_pr else None
     return {
         "now": time.time(), "repo": config.GITHUB_REPO, "base_sha": kv.get(db.index_key()),
         "tick_running_since": float(kv["tick_started"]) if kv.get("tick_started") else None,
         "last_tick": float(kv["last_tick"]) if kv.get("last_tick") else None, "poll_seconds": config.POLL_SECONDS,
-        "llm": config.llm()["label"], "classifier": "dummy LLM classifier (CLM slot)", "agent": config.OPENCLAW_AGENT,
+        "llm": config.llm()["label"], "classifier": CLASSIFIER_LABEL, "agent": config.OPENCLAW_AGENT,
         "top_k": config.TOP_K, "floor": config.MIN_CANDIDATE_SCORE,
         "events": events, "open_prs": open_prs, "focus": dict(focus_pr) if focus_pr else None,
-        "findings": findings, "alert": dict(alert) if alert else None, "baseline": demo.baseline(conn),
+        "findings": findings, "alert": dict(alert) if alert else None, "discord": discord, "baseline": demo.baseline(conn),
     }
 
 

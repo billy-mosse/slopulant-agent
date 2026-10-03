@@ -1,0 +1,18 @@
+[Unit]
+Description=Slopulant CLM worker: judges duplicate candidates with CLM-v0.1-8B (writes decisions)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/slopulant-agent
+# Starts the encoder (llama.cpp :8090) and clm-serve (:8700) if they're down; returns once they're up.
+ExecStartPre=%h/slopulant-agent/scripts/start_clm.sh
+ExecStart=%h/clm-venv/bin/python -m watcher.clm_worker
+Environment=PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 CLM_DEVICE=cpu
+Environment=CLM_CKPT=%h/repos/RINGUSB1/clm-stack/CLM-v0.1-8B/CLM_v0.1-8B.pt
+TimeoutStartSec=600
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

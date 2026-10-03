@@ -1,0 +1,4 @@
+# CLM worker venv (~/clm-venv): python3.12 -m venv ~/clm-venv && ~/clm-venv/bin/pip install -r clm_dupe/requirements.txt
+contrastive-lm==0.1.0
+numpy
+requests

@@ -74,6 +74,15 @@ def validate_decision(payload):
             if not isinstance(values, list) or len(values) > 100 or any(type(v) is not int or v < 0 for v in values):
                 raise ValueError(f"{key} must be a list of nonnegative integer source IDs")
             decision[key] = sorted(set(values))
+    if "source_decision_keys" in payload:
+        values = payload["source_decision_keys"]
+        if not isinstance(values, list) or len(values) > 100 or any(not isinstance(v, str) or not v.strip() or len(v) > 600 for v in values):
+            raise ValueError("source_decision_keys must be a list of '<pr folder>/<existing folder>' keys")
+        decision["source_decision_keys"] = sorted(set(values))
+    if payload.get("base_sha") is not None:
+        if not isinstance(payload["base_sha"], str) or not re.fullmatch(r"[a-fA-F0-9]{7,64}", payload["base_sha"]):
+            raise ValueError("base_sha must be a Git commit hash")
+        decision["base_sha"] = payload["base_sha"]
     if "folder_names" in payload:
         values = payload["folder_names"]
         if not isinstance(values, list) or len(values) > 100 or any(not isinstance(v, str) or not v.strip() or len(v) > 1000 for v in values):

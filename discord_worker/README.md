@@ -1,48 +1,25 @@
 # DupCheck Discord worker
 
-This worker connects the team's OpenClaw/Qwen duplicate detector to Discord. It reads completed decisions from SQLite, posts duplicate alerts in `#slop-factory`, and records reviewers' reactions against the exact analyzed snapshot.
+This worker connects the duplicate pipeline to Discord. It reads finished verdicts from the pipeline's shared SQLite database (`../data/watcher.db`), posts duplicate alerts in `#slop-factory`, and records reviewers' reactions against the exact analyzed commit.
 
-OpenClaw/Qwen makes the duplication decision. This worker handles delivery and feedback. It requires internet access to reach Discord.
+The watcher (Qwen3-Coder-Next topics + candidates) and the CLM worker (CLM-v0.1-8B verdicts + the OpenClaw agent's note) make the duplication decision. This worker handles delivery and feedback. It requires internet access to reach Discord.
 
 ## Start from this repository
-
-From the repository root, enter this component before running its commands:
 
 ```sh
 cd discord_worker
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-mkdir -p data
-cp snapshots/my_database.db data/my_database.db
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env     # paste DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID
+.venv/bin/python -m dupcheck_discord source-preview   # what would be sent, read-only
+.venv/bin/python -m dupcheck_discord run
 ```
 
-Paste your own bot token into the local `.env`, configure the intended Discord channel, and set:
-
-```dotenv
-DUPCHECK_SOURCE=team_sqlite
-DUPCHECK_DB_PATH=data/my_database.db
-```
-
-Then preview the source decisions and start the worker:
-
-```sh
-python -m dupcheck_discord source-preview
-python -m dupcheck_discord run
-```
-
-`snapshots/my_database.db` is a consistent backup of the GB10's live shared database. At capture it contains five source verdicts, three Discord delivery records, and three human-review rows with per-message like/dislike totals. It also retains the source topics, PR metadata, and immutable decision snapshots. The copy under `data/` is ignored by Git and gives the worker a writable database without changing the committed snapshot.
-
-The capture timestamp, SHA-256, integrity checks, and table row counts are recorded in [`snapshots/manifest.json`](snapshots/manifest.json). [`snapshots/schema.sql`](snapshots/schema.sql) provides the snapshot's schema for review without a SQLite browser.
-
-The snapshot already records delivered posts and their original Discord message/channel IDs. With the original channel configured, those delivered snapshots are not automatically sent again. Use the fictional inbox examples below for a fresh notification test. Keep the GB10's current `/home/dell/my_database.db` as the live database; do not overwrite it with this historical snapshot. No bot token or `.env` is included in the snapshot or this repository.
-
-This repository's watcher uses a different `data/watcher.db` schema, defined in `../watcher/db.py`. The current adapter targets `Commited`, `new_prs`, `dup_cg`, and `dupe_decision`; it does not automatically read the watcher's `decisions` or `alerts` tables. A detector with richer metadata can integrate through the JSON inbox API documented below. The worker has its own dependencies and runs separately from the watcher.
+`.env.example` points at the watcher's database (`DUPCHECK_SOURCE=watcher`, `DUPCHECK_DB_PATH=../data/watcher.db`). The worker adds its own `discord_*` tables and the `discord_flagger_feedback` view to that file and never writes the watcher's tables.
 
 ## Set up
 
-Use Python 3.10 or newer. From `discord_worker/` in this repository, or `/home/dell/dupcheck-discord` for the existing GB10 deployment, these commands work on the GB10 or your laptop:
+Use Python 3.10 or newer. From `discord_worker/` in this repository, these commands work on the GB10 or your laptop:
 
 ```sh
 python3 -m venv .venv
@@ -53,7 +30,7 @@ cp .env.example .env
 
 Edit `.env` and set `DISCORD_BOT_TOKEN`. The default channel name is `slop-factory`. If the bot can see more than one text channel with that name, set `DISCORD_CHANNEL_ID` to the intended channel's numeric ID. A channel ID takes priority over a name.
 
-The example configuration uses `data/dupcheck.sqlite3` with `DUPCHECK_SOURCE=inbox`. The GB10's shared database uses the configuration below. `--db` overrides `DUPCHECK_DB_PATH`; `--env-file` selects a configuration file instead of `.env`.
+The example configuration reads the watcher's database (`DUPCHECK_SOURCE=watcher`, `DUPCHECK_DB_PATH=../data/watcher.db`). For the fictional JSON examples below, use `DUPCHECK_SOURCE=inbox` with `DUPCHECK_DB_PATH=data/dupcheck.sqlite3`. `--db` overrides `DUPCHECK_DB_PATH`; `--env-file` selects a configuration file instead of `.env`.
 
 ### Create the Discord bot
 
@@ -67,7 +44,7 @@ The bot listens for guild message reactions. It does not read conversation text.
 
 ## Try it
 
-These fictional examples use a fresh setup with the inbox settings from `.env.example`. For the configured GB10, follow **Shared database on the GB10** instead.
+These fictional examples use a fresh setup with `DUPCHECK_SOURCE=inbox` and `DUPCHECK_DB_PATH=data/dupcheck.sqlite3`. For the pipeline, follow **The watcher source** instead.
 
 First verify the bot can post one labelled test message:
 
@@ -101,53 +78,35 @@ In inbox mode, stop new alerts for a closed or merged PR with:
 python -m dupcheck_discord close-pr OWNER/REPOSITORY 42 --state closed
 ```
 
-Use `--state merged` for a merged PR. This command is only available in inbox mode, where the producer must keep PR state current. `team_sqlite` rejects `close-pr` and follows the detector's active source rows instead.
+Use `--state merged` for a merged PR. This command is only available in inbox mode, where the producer must keep PR state current. Watcher mode rejects `close-pr` and follows the PR state the watcher reads from GitHub.
 
-## Shared database on the GB10
+## The watcher source (`DUPCHECK_SOURCE=watcher`)
 
-The deployed worker directory is `/home/dell/dupcheck-discord`. Its `.env` selects the team's database:
+For each PR the watcher has analysed (`prs` + its latest run in `latest_scores`), the adapter builds one snapshot of that commit:
 
-```dotenv
-DISCORD_CHANNEL_ID=1555978700686889111
-DUPCHECK_DB_PATH=/home/dell/my_database.db
-DUPCHECK_SOURCE=team_sqlite
-DUPCHECK_REPOSITORY=team repository
-```
+- **pending** until every candidate has a verdict from the current CLM version (`decisions.classifier`) and the CLM worker has marked the commit finished (`kv` `clm_finished:<head>:<base>`), and, for a duplicate, until the OpenClaw note is in `alerts`;
+- **completed duplicate** when any candidate has `decisions.is_duplicate = 1`: the note is the alert text, and each match carries a link to the folder on `main`, its owner, the CLM score and threshold, the similarity scores, shared keywords/tables and the matched PR topic;
+- **completed clean** otherwise (also for a PR with no candidates): never sent.
 
-Replace `team repository` with the real `OWNER/REPOSITORY` when known. The adapter reads `Commited`, `new_prs`, `dup_cg`, and `dupe_decision`. It uses `new_prs.owner` for the PR author and `dupe_decision.boolean` for the verdict, joins existing topics through `dup_cg.t_id`, and combines positive comparisons into one alert per PR snapshot. Missing verdicts leave the snapshot pending; all-zero verdicts produce no alert.
-
-`run` polls these source tables automatically. The original tables remain unchanged; the worker creates its namespaced delivery/feedback tables and a `discord_flagger_feedback` view in the same SQLite file.
+The real head commit, PR URL, author and GitHub state come from the watcher. A closed or merged PR stops being eligible; reopening restores it. A newer snapshot (new push, new verdict, new note) supersedes the older one, and a commit that was already posted is not posted again.
 
 ```sh
-cd /home/dell/dupcheck-discord
-source .venv/bin/activate
-python -m dupcheck_discord source-preview
-python -m dupcheck_discord sync-source
+.venv/bin/python -m dupcheck_discord source-preview   # read-only
+.venv/bin/python -m dupcheck_discord sync-source      # import snapshots, don't send
 ```
 
-`source-preview` only reads the database and prints adapted decisions. `sync-source` imports snapshots into the worker's tables without sending to Discord. The source schema has no Git SHA, PR URL, GitHub open/closed state, detailed code comparison, or whole-project/partial classification. Alerts show the available stored topics and descriptions, label the scope as unspecified, and identify a **database revision**, not a Git commit. No missing evidence or links are invented.
+### On the GB10
 
-The adapter treats `new_prs` and its comparison rows as the active PR set. Removing a PR from that set suppresses future delivery. This is a local eligibility rule; it does not establish the PR's GitHub state.
-
-The GB10 uses a user service for continuous operation:
-
-[`deploy/dupcheck-discord.service`](deploy/dupcheck-discord.service) contains the deployed unit. For a fresh deployment, adjust `WorkingDirectory` and `ExecStart` to the worker directory and virtual environment, then install the unit:
+The worker runs from `~/slopulant-agent/discord_worker` as a systemd user service, [`deploy/dupcheck-discord.service`](deploy/dupcheck-discord.service):
 
 ```sh
-mkdir -p ~/.config/systemd/user
 cp deploy/dupcheck-discord.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now dupcheck-discord.service
-```
-
-```sh
-systemctl --user status dupcheck-discord.service
-systemctl --user restart dupcheck-discord.service
-systemctl --user stop dupcheck-discord.service
 journalctl --user -u dupcheck-discord.service -n 30 --no-pager
 ```
 
-Do not start a second `run` process while this service is active. The service restarts on failure and depends on the user's systemd session; lingering is not enabled. The pre-integration backup is `/home/dell/dupcheck-discord/backups/my_database-before-discord-20261003T174654Z.db`.
+Do not start a second `run` process while this service is active. The service restarts on failure and depends on the user's systemd session; lingering is not enabled.
 
 ## Optional inbox integration
 
@@ -192,7 +151,7 @@ Votes are stored per decision and reviewer, with the Discord message ID linking 
 
 By default, all human reviewers who can see the channel may vote. Set `DISCORD_REVIEWER_IDS` to comma-separated Discord user IDs to restrict accepted votes.
 
-Each Discord post also has persisted `like_count` and `dislike_count` columns in `discord_notifications`. In the shared database `/home/dell/my_database.db`, read the totals with:
+Each Discord post also has persisted `like_count` and `dislike_count` columns in `discord_notifications`. In the shared database (`data/watcher.db`), read the totals with:
 
 ```sql
 SELECT n.message_id, d.pr_number, n.like_count, n.dislike_count
@@ -203,17 +162,17 @@ WHERE n.status = 'sent';
 
 Counts update when reactions are added, removed, or cleared and include accepted human reviewers only; the bot's initial 👍/👎 reactions do not count. A reviewer who uses both emojis contributes one to each total, while their per-user vote remains unset until they choose one.
 
-Saving feedback does not automatically train Qwen. The detector must consume these reviewed examples in future prompts/retrieval, or the team must curate them for a later training step.
+Saving feedback does not automatically retune anything. `python -m eval.export_feedback` (repo root) joins the reviews back to the judged pairs, with the CLM score and threshold, so the threshold can be re-picked in `clm_dupe/calibration/`.
 
-In the shared database, the detector can read:
+In the shared database, the reviews link back to the watcher's verdicts:
 
 ```sql
-SELECT source_dup_ids, pr_number, user_id, is_good, updated_at
+SELECT pr_number, head_sha, base_sha, source_decision_keys, user_id, is_good, updated_at
 FROM discord_flagger_feedback
 WHERE is_good IS NOT NULL;
 ```
 
-The underlying `discord_feedback` table stores `vote` as `1`, `-1`, or `NULL`; the view maps that to `is_good` as `1`, `0`, or `NULL`. It also exposes `source_dup_ids` (a JSON array of the original positive comparison IDs), `source_revision`, `decision_id`, Discord message/channel IDs, and `payload_json`. Each review concerns the **whole alert**, not separate labels for every listed comparison. Feedback is stored alongside the source tables and does not rewrite the detector's verdicts.
+The underlying `discord_feedback` table stores `vote` as `1`, `-1`, or `NULL`; the view maps that to `is_good` as `1`, `0`, or `NULL`. `source_decision_keys` is a JSON array of `<pr folder>/<existing folder>` pairs: with `pr_number`, `head_sha` and `base_sha` they are the primary keys of the reviewed `decisions` rows. The view also exposes `source_revision`, `decision_id`, Discord message/channel IDs, and `payload_json`. Each review concerns the **whole alert**, not separate labels for every listed comparison. Feedback is stored alongside the source tables and does not rewrite the detector's verdicts.
 
 ## Delivery behavior
 
@@ -229,14 +188,3 @@ python -m dupcheck_discord preview examples/duplicate.json
 ```
 
 These checks do not send Discord messages. A live test needs your bot token and channel configuration, followed by an ingested duplicate decision and a 👍/👎 reaction in Discord.
-
-## Copy to the GB10
-
-If you built this folder on your laptop, create a destination on the machine and copy the source files:
-
-```sh
-ssh dell@172.20.65.127 'mkdir -p ~/dupcheck-discord'
-scp -r dupcheck_discord examples requirements.txt README.md .env.example dell@172.20.65.127:~/dupcheck-discord/
-```
-
-Then SSH into the GB10, enter `~/dupcheck-discord`, and follow **Set up**. The copy command excludes your token and local database. Run the worker on the machine that has access to the detector's SQLite file.
