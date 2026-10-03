@@ -114,19 +114,23 @@
   .stack .head { position: absolute; left: 72px; top: 52px; right: 72px; }
   .stack h2 { font-size: 50px; line-height: 1.05; }
   .stack h2 em.serif { color: var(--cyan); }
-  .stack .cards { position: absolute; left: 72px; right: 72px; top: 240px; display: grid; grid-template-columns: 1fr 30px 1fr 30px 1fr 30px 1fr; align-items: stretch; gap: 10px; }
+  .stack .cards { position: absolute; left: 72px; right: 72px; top: 240px; display: grid; grid-template-columns: 1fr 22px 1fr 22px 1fr 22px 1fr; align-items: stretch; gap: 8px; }
   .stack .card { background: var(--gh-canvas); border: 1px solid var(--gh-border); border-radius: 16px; padding: 24px 24px 28px; display: grid; gap: 10px; align-content: start; }
   .stack .card.accent { border-color: rgba(255,62,200,.55); box-shadow: 0 0 0 1px rgba(255,62,200,.18), 0 20px 50px rgba(255,62,200,.10); }
   .stack .tag-role { font: 600 13px "JetBrains Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
   .stack .card.accent .tag-role { color: var(--magenta); }
   .stack h3 { margin: 0; font: 800 30px/1.1 "Bricolage Grotesque", sans-serif; letter-spacing: -.01em; }
   .stack .what { margin: 0; color: var(--muted); font-size: 17px; }
+  .stack h3 { display: flex; align-items: center; gap: 10px; font-size: 27px; white-space: nowrap; }
+  .stack .logo { width: 34px; height: 34px; object-fit: contain; flex: none; }
+  .stack img.inline { width: 1.15em; height: 1.15em; object-fit: contain; vertical-align: -0.22em; margin: 0 6px 0 2px; }
+  .stack img.mono { filter: invert(1) brightness(.85); }
   .stack ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
   .stack li { font-size: 17px; line-height: 1.4; color: #e4defa; padding-left: 18px; position: relative; }
   .stack li::before { content: ""; position: absolute; left: 0; top: .6em; width: 7px; height: 7px; border-radius: 50%; background: var(--violet); }
   .stack li code { font: 500 15px "JetBrains Mono", monospace; background: rgba(110,118,129,.2); padding: 1px 5px; border-radius: 5px; }
   .stack .chev { align-self: center; text-align: center; font-size: 40px; color: rgba(245,242,255,.35); }
-  .stack .base { position: absolute; left: 72px; right: 72px; top: 610px; text-align: center; padding: 14px; border-radius: 12px;
+  .stack .base { position: absolute; left: 72px; right: 72px; top: 650px; text-align: center; padding: 14px; border-radius: 12px;
     border: 1px dashed rgba(255,255,255,.18); color: var(--muted); font: 500 16px "JetBrains Mono", monospace; }
 
   /* --- 4: future work --- */
@@ -335,7 +339,7 @@
     <div class="cards">
       <article class="card">
         <div class="tag-role">runs the agent</div>
-        <h3>OpenClaw</h3>
+        <h3><img class="logo" src="icons/openclaw.svg" alt="">OpenClaw</h3>
         <p class="what">Always-on agent runtime</p>
         <ul>
           <li>Scheduled job every 30 s runs the watcher: poll PRs, score, comment</li>
@@ -345,8 +349,8 @@
       <div class="chev" aria-hidden="true">›</div>
       <article class="card">
         <div class="tag-role">reads the code</div>
-        <h3>Qwen3-Coder-Next</h3>
-        <p class="what">80B MoE, ~3B active · Q6 on Ollama</p>
+        <h3><img class="logo" src="icons/qwen.svg" alt="">Qwen3-Coder-Next</h3>
+        <p class="what">3B-active MoE · Q6 · <img class="inline" src="icons/ollama.svg" alt="">Ollama</p>
         <ul>
           <li>Splits every folder into topics: what it does, its tables</li>
           <li>Writes technical keywords per topic</li>
@@ -356,7 +360,7 @@
       <div class="chev" aria-hidden="true">›</div>
       <article class="card">
         <div class="tag-role">finds candidates</div>
-        <h3>Embeddings</h3>
+        <h3><img class="logo" src="icons/huggingface.svg" alt="">Embeddings</h3>
         <p class="what">all-MiniLM-L6-v2 + keyword TF-IDF</p>
         <ul>
           <li>Embeds topic descriptions, matches the PR against all of main</li>
@@ -374,7 +378,7 @@
         </ul>
       </article>
     </div>
-    <div class="base">All on one NVIDIA GB10 box · GitHub API for PRs and comments · SQLite for state</div>
+    <div class="base">All on one <img class="inline" src="icons/nvidia.svg" alt="">NVIDIA GB10 box · <img class="inline mono" src="icons/github.svg" alt="">GitHub API for PRs and comments · <img class="inline mono" src="icons/sqlite.svg" alt="">SQLite for state</div>
   </section>
 
   <!-- 3 · EXAMPLE -->
