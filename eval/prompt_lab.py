@@ -246,7 +246,7 @@ class Cache:
 
     def generate(self, prompt_name, prompt, docs, max_tokens=400):
         """{name: LLM output} for every doc, missing ones fetched in parallel."""
-        key = lambda n: f"{config.LLM_MODEL}|{prompt_name}|{docs[n][0]}|{hashlib.sha1(docs[n][1].encode()).hexdigest()[:12]}"
+        key = lambda n: f"{config.llm()['model']}|{prompt_name}|{docs[n][0]}|{hashlib.sha1(docs[n][1].encode()).hexdigest()[:12]}"
         missing = [n for n in docs if key(n) not in self.data]
 
         def fetch(n):
@@ -380,7 +380,7 @@ def run_signals(by_group):
         "desc+kw mean + 0.25*code": lambda q, f: sem(q, f) + 0.25 * code(q, f),
     }
     n_pos = sum(1 for _, e, _ in QUERIES.values() if e)
-    print(f"model {config.LLM_MODEL} | {len(QUERIES)} queries ({n_pos} positive) | embed {config.EMBED_MODEL.split('/')[-1]}")
+    print(f"model {config.llm()['model']} | {len(QUERIES)} queries ({n_pos} positive) | embed {config.EMBED_MODEL.split('/')[-1]}")
     print_table([(name, evaluate(sim, main_folders)) for name, sim in signals.items()], by_group)
 
 

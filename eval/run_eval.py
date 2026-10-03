@@ -1,6 +1,6 @@
 """End-to-end eval of the watcher (a candidate generator) on the [TEST] PRs.
 
-Runs one watcher pass (every open PR scored at its current head), then rebuilds each
+Scores every test branch directly against main (no PRs needed), then rebuilds each
 PR folder's candidate set for several K and compares it with eval/cases.json:
 
   candidates(K)   every dataflow-linked folder + the top-K other folders by similarity
@@ -20,25 +20,25 @@ import time
 from collections import Counter
 from pathlib import Path
 
-import requests
-
 from eval.build_cases import POSITIVE
-from watcher import config, db, github, gitrepo
-from watcher.main import tick
+from tqdm import tqdm
+
+from watcher import config, db, gitrepo, topics
 
 CASES = {k: v for k, v in json.loads((Path(__file__).parent / "cases.json").read_text()).items() if not k.startswith("_")}
 KS = (1, 3, 5, 10)
 
 
-def open_prs_by_branch():
-    resp = requests.get(
-        f"https://api.github.com/repos/{config.GITHUB_REPO}/pulls",
-        params={"state": "open", "per_page": 100},
-        headers={"Authorization": f"Bearer {github._token()}"},
-        timeout=20,
-    )
-    resp.raise_for_status()
-    return {pr["head"]["ref"]: (pr["number"], pr["head"]["sha"]) for pr in resp.json()}
+def score_branch(conn, base_sha, head_sha):
+    """{pr_folder: rows} for a branch head, computed directly (no PR needed), so the
+    eval doesn't depend on which test PRs are open during a demo."""
+    head_folders = gitrepo.folders(head_sha)
+    out = {}
+    for folder in gitrepo.touched_folders(base_sha, head_sha):
+        if folder in head_folders:
+            entry = topics.folder_for(conn, head_sha, folder, head_folders[folder])
+            out[folder] = topics.rank_against_base(conn, base_sha, folder, entry)
+    return out
 
 
 def candidates(rows, k, floor):
@@ -50,28 +50,26 @@ def candidates(rows, k, floor):
 def main():
     quiet = "--quiet" in sys.argv
     started = time.time()
-    print(f"LLM {config.LLM_MODEL} @ {config.LLM_BASE_URL} | cache {'on' if config.LLM_CACHE else 'off'}", flush=True)
+    print(f"LLM {config.llm()['label']} | cache {'on' if config.LLM_CACHE else 'off'}", flush=True)
     conn = db.connect()
     gitrepo.ensure_clone()
-    tick(conn)
-    scored_at = time.time()
-    prs = open_prs_by_branch()
+    base_sha = gitrepo.fetch_base()
+    branches = gitrepo.fetch_branches()
+    topics.ensure_folders(conn, base_sha, gitrepo.folders(base_sha))
+    scored_at = None
 
     folders, missing = [], []  # (label, rows, truth)
-    for branch, pr_folders in CASES.items():
-        if branch not in prs:
+    for branch, pr_folders in tqdm(CASES.items(), desc="scoring test branches", unit="branch", disable=not config.PROGRESS):
+        if branch not in branches:
             missing.append(branch)
             continue
-        number, sha = prs[branch]
+        by_folder = score_branch(conn, base_sha, branches[branch])
         for folder, truth in pr_folders.items():
-            rows = conn.execute(
-                "SELECT * FROM scores WHERE pr_number = ? AND head_sha = ? AND pr_folder = ? ORDER BY score DESC",
-                (number, sha, folder),
-            ).fetchall()
-            if rows:
-                folders.append((f"#{number} {folder}", rows, truth))
+            if folder in by_folder:
+                folders.append((f"{branch} {folder}", by_folder[folder], truth))
             else:
-                missing.append(f"{branch}:{folder} (not scored)")
+                missing.append(f"{branch}:{folder} (not touched vs main; merged?)")
+    scored_at = time.time()
 
     def evaluate(k, floor):
         hit = want = n_cands = neg = neg_silent = 0

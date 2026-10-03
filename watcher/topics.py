@@ -117,22 +117,23 @@ def embed(texts):
 
 
 def _chat(prompt, max_tokens):
+    llm = config.llm()
     body = {
-        "model": config.LLM_MODEL,
+        "model": llm["model"],
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "max_tokens": max_tokens,
         # Qwen3 thinking mode is slow and not needed here.
         "chat_template_kwargs": {"enable_thinking": False},
     }
-    cache_request = {"url": config.LLM_BASE_URL, **body}
+    cache_request = {"url": llm["base_url"], **body}
     cached = llm_cache.get(cache_request)
     if cached is not None:
         return cached
     resp = requests.post(
-        f"{config.LLM_BASE_URL}/chat/completions",
+        f"{llm['base_url']}/chat/completions",
         json=body,
-        headers={"Authorization": f"Bearer {config.LLM_API_KEY}"} if config.LLM_API_KEY else {},
+        headers={"Authorization": f"Bearer {llm['api_key']}"} if llm["api_key"] else {},
         timeout=300,
     )
     resp.raise_for_status()

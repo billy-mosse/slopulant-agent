@@ -1,30 +1,85 @@
-"""All settings come from env vars so the same code runs on a Mac (mlx_lm.server)
-and on the hackathon box (vLLM) — only LLM_BASE_URL / LLM_MODEL change."""
+"""All settings come from env vars (or a gitignored .env file next to the repo
+root), so the same code runs on a laptop (OpenRouter) and on the hackathon box
+(Ollama + OpenClaw): only the .env differs."""
 import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
+def _load_dotenv(path):
+    """KEY=VALUE lines; real environment variables win. ~ is expanded."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), os.path.expanduser(value.strip().strip('"').strip("'")))
+
+
+_load_dotenv(ROOT / ".env")
+
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "billy-mosse/slopulant-monorepo")
+# Token for GitHub API + git fetch/push: GITHUB_TOKEN, else this file, else (laptop
+# only) `gh auth token`. On shared machines set ALLOW_GH_FALLBACK=0 so another
+# user's gh login is never used.
+GITHUB_TOKEN_FILE = Path(os.environ.get("GITHUB_TOKEN_FILE", Path.home() / ".slopulant" / "github_token"))
+ALLOW_GH_FALLBACK = os.environ.get("ALLOW_GH_FALLBACK", "1") != "0"
+# Post/update the "[oc]" alert comment on PRs.
+POST_GITHUB_COMMENTS = os.environ.get("POST_GITHUB_COMMENTS", "1") != "0"
 BASE_BRANCH = os.environ.get("BASE_BRANCH", "main")
 POLL_SECONDS = int(os.environ.get("POLL_SECONDS", "30"))
 
-# Any OpenAI-compatible server. Default: Qwen3-Coder-Next on OpenRouter (dev).
-# At the hackathon, serve the same model locally with vLLM and set
-# LLM_BASE_URL=http://localhost:8000/v1 LLM_MODEL=<served model name>.
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://openrouter.ai/api/v1")
-LLM_MODEL = os.environ.get("LLM_MODEL", "qwen/qwen3-coder-next")
-
-
-def _api_key():
+# LLM profiles: the same model (Qwen3-Coder-Next) served locally (Ollama on the GB10
+# box) or by OpenRouter. LLM_PROFILE picks the default; the dashboard can switch at
+# runtime (stored in DATA_DIR/llm_profile). Results are cached per model, so
+# switching back and forth never throws work away.
+def _openrouter_key():
     if os.environ.get("LLM_API_KEY"):
         return os.environ["LLM_API_KEY"]
-    key_file = ROOT / ".api_key"  # gitignored
+    key_file = Path(os.environ.get("OPENROUTER_KEY_FILE", ROOT / ".api_key"))  # gitignored
     return key_file.read_text().strip() if key_file.exists() else ""
 
 
-# Only sent to hosted endpoints; local servers don't need it.
-LLM_API_KEY = _api_key() if "openrouter.ai" in LLM_BASE_URL else os.environ.get("LLM_API_KEY", "")
+PROFILES = {
+    "local": {
+        "label": "Local · Qwen3-Coder-Next Q6 (Ollama)",
+        "base_url": os.environ.get("LLM_LOCAL_URL", "http://127.0.0.1:11434/v1"),
+        "model": os.environ.get("LLM_LOCAL_MODEL", "coder-next:latest"),
+        "api_key": "",
+    },
+    "openrouter": {
+        "label": "OpenRouter · Qwen3-Coder-Next bf16",
+        "base_url": "https://openrouter.ai/api/v1",
+        "model": os.environ.get("LLM_OPENROUTER_MODEL", "qwen/qwen3-coder-next"),
+        "api_key": _openrouter_key(),
+    },
+}
+DEFAULT_PROFILE = os.environ.get("LLM_PROFILE", "openrouter")
+
+
+def llm_profile():
+    """Active profile name: dashboard override if set, else LLM_PROFILE."""
+    try:
+        name = (DATA_DIR / "llm_profile").read_text().strip()
+    except OSError:
+        name = ""
+    return name if name in PROFILES else DEFAULT_PROFILE
+
+
+def set_llm_profile(name):
+    if name not in PROFILES:
+        raise ValueError(f"unknown LLM profile {name!r}; choose from {', '.join(PROFILES)}")
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    (DATA_DIR / "llm_profile").write_text(name)
+
+
+def llm():
+    """{"profile", "label", "base_url", "model", "api_key"} for the active profile."""
+    name = llm_profile()
+    return {"profile": name, **PROFILES[name]}
+
 
 # Local cache of LLM responses (JSON): identical requests never hit the provider.
 # Turn off for the hackathon deployment with LLM_CACHE=0.
@@ -38,7 +93,7 @@ PROGRESS = os.environ.get("PROGRESS", "1") != "0"
 LLM_CONCURRENCY = int(os.environ.get("LLM_CONCURRENCY", "8"))
 
 # Bump when compare()/ranking logic changes: open PRs get re-scored.
-SCORING_VERSION = 5
+SCORING_VERSION = 6
 
 # Bump when the topic prompts or topic contents change; part of the cache key.
 TOPICS_VERSION = 3
@@ -66,3 +121,16 @@ MAX_FILE_BYTES = 400_000
 # extracted per chunk and merged. ~40k chars is ~12k tokens: comfortable inside a
 # 32k-token context with the prompt and the JSON reply.
 CHUNK_CHARS = int(os.environ.get("CHUNK_CHARS", "40000"))
+
+# Dummy duplicate classifier (to be replaced by the CLM classifier): one LLM call
+# per candidate. CLASSIFIER=0 to skip.
+CLASSIFIER = os.environ.get("CLASSIFIER", "1") != "0"
+
+# OpenClaw: the agent that writes the alert. If the CLI isn't available (e.g. on a
+# laptop) the alert falls back to a deterministic summary.
+OPENCLAW_BIN = os.environ.get("OPENCLAW_BIN", "openclaw")
+OPENCLAW_AGENT = os.environ.get("OPENCLAW_AGENT", "main")
+OPENCLAW_TIMEOUT = int(os.environ.get("OPENCLAW_TIMEOUT", "180"))
+
+# A queue item stuck in "running" longer than this (a crashed run) is retried.
+STALE_RUN_SECONDS = int(os.environ.get("STALE_RUN_SECONDS", "900"))

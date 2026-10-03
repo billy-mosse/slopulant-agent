@@ -85,125 +85,124 @@
 
   <!-- 1. End to end ------------------------------------------------------------ -->
   <section>
-    <h2>1 · From a pushed commit to candidates</h2>
+    <h2>1 · The always-on agent, end to end</h2>
     <figure>
       <div class="scroll">
-      <svg viewBox="0 0 1100 450" role="img" aria-label="The watcher polls GitHub for PRs, queues each new commit, extracts topics for the folders the PR touches, compares them with cached topics of every folder on main, and writes candidates that the demo UI reads and that the classifier and Slack alert will consume.">
+      <svg viewBox="0 0 1100 580" role="img" aria-label="OpenClaw's scheduler runs a watcher tick every 30 seconds under a lock. The tick polls GitHub for open and merged PRs, queues new commits, extracts topics and candidates, asks the classifier, has the OpenClaw watcher agent write a note and posts it as an [oc] comment on the PR. Merges re-index main reusing cached topic sets. The dashboard reads the SQLite database and drives real PR actions and resets.">
         <defs>
           <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
           </marker>
-          <marker id="a1f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="#8a93a3"/>
-          </marker>
         </defs>
 
         <!-- row 0 -->
-        <rect class="box" x="20" y="40" width="150" height="70" rx="8"/>
-        <text class="t" x="95" y="68" text-anchor="middle">GitHub</text>
-        <text class="m" x="95" y="86" text-anchor="middle">slopulant-monorepo</text>
-        <text class="s" x="95" y="101" text-anchor="middle">main + open PRs</text>
+        <rect class="box" x="20" y="30" width="170" height="80" rx="8"/>
+        <text class="t" x="105" y="58" text-anchor="middle">GitHub</text>
+        <text class="m" x="105" y="76" text-anchor="middle">slopulant-monorepo</text>
+        <text class="s" x="105" y="92" text-anchor="middle">main · PRs · comments</text>
 
-        <rect class="box" x="220" y="40" width="150" height="70" rx="8"/>
-        <text class="t" x="295" y="68" text-anchor="middle">Poll open PRs</text>
-        <text class="s" x="295" y="86" text-anchor="middle">every 30 s</text>
-        <text class="s" x="295" y="101" text-anchor="middle">ETag: idle polls are free</text>
+        <rect class="box" x="460" y="30" width="170" height="80" rx="8"/>
+        <text class="t" x="545" y="56" text-anchor="middle">Watcher tick</text>
+        <text class="s" x="545" y="74" text-anchor="middle">poll open + merged PRs</text>
+        <text class="s" x="545" y="90" text-anchor="middle">queue new commits</text>
 
-        <rect class="box store" x="420" y="40" width="170" height="70" rx="8"/>
-        <text class="t" x="505" y="68" text-anchor="middle">PR queue</text>
-        <text class="m" x="505" y="86" text-anchor="middle">(PR, head, base,</text>
-        <text class="m" x="505" y="101" text-anchor="middle">version)</text>
+        <rect class="box store" x="680" y="30" width="170" height="80" rx="8"/>
+        <text class="t" x="765" y="56" text-anchor="middle">PR queue</text>
+        <text class="s" x="765" y="74" text-anchor="middle">claimed item by item</text>
+        <text class="s" x="765" y="90" text-anchor="middle">crashed runs retried</text>
 
-        <rect class="box" x="640" y="40" width="170" height="70" rx="8"/>
-        <text class="t" x="725" y="68" text-anchor="middle">Score PR</text>
-        <text class="s" x="725" y="86" text-anchor="middle">each folder it touches</text>
-        <text class="s" x="725" y="101" text-anchor="middle">vs every folder on main</text>
-
-        <rect class="box store" x="860" y="40" width="190" height="70" rx="8"/>
-        <text class="t" x="955" y="68" text-anchor="middle">Candidates</text>
-        <text class="m" x="955" y="86" text-anchor="middle">scores table</text>
-        <text class="s" x="955" y="101" text-anchor="middle">with evidence per match</text>
+        <rect class="box llm" x="900" y="30" width="180" height="80" rx="8"/>
+        <text class="t" x="990" y="56" text-anchor="middle">Topics → candidates</text>
+        <text class="s" x="990" y="74" text-anchor="middle">per touched folder</text>
+        <text class="s" x="990" y="90" text-anchor="middle">figures 2 and 3</text>
 
         <!-- row 1 -->
-        <rect class="box" x="220" y="190" width="150" height="70" rx="8"/>
-        <text class="t" x="295" y="218" text-anchor="middle">Index main</text>
-        <text class="s" x="295" y="236" text-anchor="middle">only folders whose</text>
-        <text class="s" x="295" y="251" text-anchor="middle">git tree changed</text>
+        <rect class="box" x="20" y="170" width="170" height="80" rx="8"/>
+        <text class="t" x="105" y="196" text-anchor="middle">Dashboard</text>
+        <text class="s" x="105" y="214" text-anchor="middle">Chrome on the laptop</text>
+        <text class="m" x="105" y="230" text-anchor="middle">SSH tunnel :8765</text>
 
-        <rect class="box llm" x="420" y="190" width="170" height="70" rx="8"/>
-        <text class="t" x="505" y="218" text-anchor="middle">Folder → topics</text>
-        <text class="s" x="505" y="236" text-anchor="middle">1..N per folder</text>
-        <text class="s" x="505" y="251" text-anchor="middle">see figure 2</text>
+        <rect class="box" x="240" y="170" width="170" height="80" rx="8"/>
+        <text class="t" x="325" y="196" text-anchor="middle">Demo actions</text>
+        <text class="s" x="325" y="214" text-anchor="middle">open · merge · close</text>
+        <text class="s" x="325" y="230" text-anchor="middle">reset · model switch</text>
 
-        <rect class="box store" x="640" y="190" width="170" height="70" rx="8"/>
-        <text class="t" x="725" y="218" text-anchor="middle">Topics cache</text>
-        <text class="m" x="725" y="236" text-anchor="middle">key: git tree sha</text>
-        <text class="m" x="725" y="251" text-anchor="middle">+ model + version</text>
+        <rect class="box" x="460" y="170" width="170" height="80" rx="8" style="stroke:var(--accent, #2f5d8a);stroke-width:2"/>
+        <text class="t" x="545" y="196" text-anchor="middle">OpenClaw scheduler</text>
+        <text class="s" x="545" y="214" text-anchor="middle">job every 30 s</text>
+        <text class="s" x="545" y="230" text-anchor="middle">lock: ticks never overlap</text>
 
-        <rect class="box" x="860" y="190" width="190" height="70" rx="8"/>
-        <text class="t" x="955" y="218" text-anchor="middle">Demo UI</text>
-        <text class="m" x="955" y="236" text-anchor="middle">localhost:8765</text>
-        <text class="s" x="955" y="251" text-anchor="middle">PRs · try it · index</text>
+        <rect class="box store" x="680" y="170" width="170" height="80" rx="8"/>
+        <text class="t" x="765" y="196" text-anchor="middle">SQLite</text>
+        <text class="s" x="765" y="214" text-anchor="middle">topics · scores · verdicts</text>
+        <text class="s" x="765" y="230" text-anchor="middle">alerts · events</text>
+
+        <rect class="box llm" x="900" y="170" width="180" height="80" rx="8"/>
+        <text class="t" x="990" y="196" text-anchor="middle">Classifier</text>
+        <text class="s" x="990" y="214" text-anchor="middle">relation + confidence</text>
+        <text class="s" x="990" y="230" text-anchor="middle">dummy LLM → CLM later</text>
 
         <!-- row 2 -->
-        <rect class="box store" x="220" y="340" width="150" height="70" rx="8"/>
-        <text class="t" x="295" y="368" text-anchor="middle">LLM response cache</text>
-        <text class="m" x="295" y="386" text-anchor="middle">data/llm_cache.json</text>
-        <text class="s" x="295" y="401" text-anchor="middle">off for the hackathon</text>
+        <rect class="box" x="680" y="310" width="170" height="80" rx="8"/>
+        <text class="t" x="765" y="336" text-anchor="middle">Re-index main</text>
+        <text class="s" x="765" y="354" text-anchor="middle">after a merge: topic sets</text>
+        <text class="s" x="765" y="370" text-anchor="middle">reused by git tree sha</text>
 
-        <rect class="box llm" x="420" y="340" width="170" height="70" rx="8"/>
-        <text class="t" x="505" y="368" text-anchor="middle">Qwen3-Coder-Next</text>
-        <text class="s" x="505" y="386" text-anchor="middle">OpenRouter (dev)</text>
-        <text class="s" x="505" y="401" text-anchor="middle">Ollama on GB10 (event)</text>
+        <rect class="box llm" x="900" y="310" width="180" height="80" rx="8" style="stroke-width:2"/>
+        <text class="t" x="990" y="336" text-anchor="middle">OpenClaw agent</text>
+        <text class="m" x="990" y="354" text-anchor="middle">watcher</text>
+        <text class="s" x="990" y="370" text-anchor="middle">writes the note to the author</text>
 
-        <rect class="box future" x="860" y="340" width="190" height="70" rx="8"/>
-        <text class="t future-t" x="955" y="368" text-anchor="middle">CLM classifier → alert</text>
-        <text class="s" x="955" y="386" text-anchor="middle">relation + confidence</text>
-        <text class="s" x="955" y="401" text-anchor="middle">Slack / OpenClaw → owner</text>
+        <!-- row 3 -->
+        <rect class="box llm" x="460" y="450" width="170" height="80" rx="8"/>
+        <text class="t" x="545" y="476" text-anchor="middle">LLM profiles</text>
+        <text class="s" x="545" y="494" text-anchor="middle">Ollama Coder-Next Q6</text>
+        <text class="s" x="545" y="510" text-anchor="middle">or OpenRouter bf16</text>
 
-        <!-- edges, row 0 -->
-        <path class="edge" d="M170,75 H218" marker-end="url(#a1)"/>
-        <text class="lbl" x="194" y="68" text-anchor="middle">PRs</text>
-        <path class="edge" d="M370,75 H418" marker-end="url(#a1)"/>
-        <text class="lbl" x="394" y="68" text-anchor="middle">new</text>
-        <path class="edge" d="M590,75 H638" marker-end="url(#a1)"/>
-        <text class="lbl" x="614" y="68" text-anchor="middle">next</text>
-        <path class="edge" d="M810,75 H858" marker-end="url(#a1)"/>
-        <text class="lbl" x="834" y="68" text-anchor="middle">writes</text>
+        <rect class="box" x="900" y="450" width="180" height="80" rx="8"/>
+        <text class="t" x="990" y="476" text-anchor="middle">[oc] PR comment</text>
+        <text class="s" x="990" y="494" text-anchor="middle">links · owners · verdicts</text>
+        <text class="s" x="990" y="510" text-anchor="middle">edited on every push</text>
 
-        <!-- main moved -->
-        <path class="edge" d="M95,110 V225 H218" marker-end="url(#a1)"/>
-        <text class="lbl" x="103" y="170">main moved</text>
-        <path class="edge" d="M370,225 H418" marker-end="url(#a1)"/>
-        <text class="lbl" x="394" y="218" text-anchor="middle">folder</text>
-        <path class="edge" d="M590,225 H638" marker-end="url(#a1)"/>
-        <text class="lbl" x="614" y="218" text-anchor="middle">store</text>
-
-        <!-- PR folder goes through the same topic extraction -->
-        <path class="edge" d="M680,110 V150 H530 V188" marker-end="url(#a1)"/>
-        <text class="lbl" x="605" y="144" text-anchor="middle">PR folder at its head</text>
-        <!-- scoring reads the cache -->
-        <path class="edge" d="M770,190 V112" marker-end="url(#a1)"/>
-        <text class="lbl" x="778" y="160">main's topics</text>
-
-        <!-- LLM -->
-        <path class="edge llm" d="M505,260 V338" marker-end="url(#a1)"/>
-        <text class="lbl" x="513" y="295">2 calls / chunk</text>
-        <text class="lbl" x="513" y="310">+1 merge if chunked</text>
-        <path class="edge" d="M418,375 H372" marker-end="url(#a1)"/>
-        <text class="lbl" x="395" y="368" text-anchor="middle">hit?</text>
-
-        <!-- consumers -->
-        <path class="edge" d="M955,110 V188" marker-end="url(#a1)"/>
-        <text class="lbl" x="963" y="155">reads</text>
-        <path class="edge future" d="M1050,75 H1078 V375 H1052" marker-end="url(#a1f)"/>
-        <text class="lbl" x="1072" y="300" text-anchor="end">candidates</text>
+        <!-- edges -->
+        <path class="edge" d="M190,62 H458" marker-end="url(#a1)"/>
+        <text class="lbl" x="324" y="55" text-anchor="middle">open + merged PRs</text>
+        <path class="edge" d="M630,70 H678" marker-end="url(#a1)"/>
+        <text class="lbl" x="654" y="63" text-anchor="middle">new</text>
+        <path class="edge" d="M850,70 H898" marker-end="url(#a1)"/>
+        <text class="lbl" x="874" y="63" text-anchor="middle">next</text>
+        <path class="edge" d="M545,170 V112" marker-end="url(#a1)"/>
+        <text class="lbl" x="553" y="146">runs 1 tick</text>
+        <path class="edge" d="M990,110 V168" marker-end="url(#a1)"/>
+        <text class="lbl" x="998" y="146">each candidate</text>
+        <path class="edge" d="M990,250 V308" marker-end="url(#a1)"/>
+        <text class="lbl" x="998" y="286">findings</text>
+        <path class="edge" d="M990,390 V448" marker-end="url(#a1)"/>
+        <text class="lbl" x="998" y="426">note</text>
+        <path class="edge" d="M990,530 V556 H10 V80 H18" marker-end="url(#a1)"/>
+        <text class="lbl" x="770" y="550" text-anchor="middle">post / edit comment on the PR</text>
+        <path class="edge" d="M898,210 H852" marker-end="url(#a1)"/>
+        <text class="lbl" x="875" y="203" text-anchor="middle">store</text>
+        <!-- merge path -->
+        <path class="edge" d="M630,100 H655 V350 H678" marker-end="url(#a1)"/>
+        <text class="lbl" x="662" y="335">merge</text>
+        <path class="edge" d="M765,310 V252" marker-end="url(#a1)"/>
+        <!-- dashboard -->
+        <path class="edge" d="M190,210 H238" marker-end="url(#a1)"/>
+        <path class="edge" d="M325,170 V140 H120 V112" marker-end="url(#a1)"/>
+        <text class="lbl" x="222" y="134" text-anchor="middle">GitHub API · force-push on reset</text>
+        <path class="edge" d="M105,250 V285 H765 V252" marker-end="url(#a1)"/>
+        <text class="lbl" x="430" y="279" text-anchor="middle">reads (every 4 s)</text>
+        <!-- llm usage -->
+        <path class="edge faint" d="M630,490 H700 V410 H990 V392"/>
+        <text class="lbl" x="706" y="430">used by topics, classifier</text>
       </svg>
       </div>
-      <figcaption>Main is indexed once and only re-processed folder by folder when its git tree changes;
-        a PR re-runs only for the folders it touches. Both sides go through the same topic extraction, so
-        their topics are directly comparable. A PR is re-scored on every push, when main moves, or when
-        the prompts or scoring version change.</figcaption>
+      <figcaption>OpenClaw's scheduler is the always-on part: every 30 seconds it runs one watcher tick, and a lock
+        makes a tick that finds the previous one still running exit immediately, so work never overlaps. Each PR commit
+        is queued once and claimed before processing. When a PR is merged, its folders land on main with the same git
+        tree, so the topic sets computed for the PR are reused as main's: no new LLM calls. The dashboard reads the
+        database and drives real GitHub actions; "reset" force-pushes main back to the saved baseline.</figcaption>
     </figure>
   </section>
 
@@ -312,7 +311,7 @@
         <text class="s" x="690" y="132">PR reads its table → upstream · it reads the PR's → downstream</text>
         <text class="t" x="690" y="166">candidate if</text>
         <text class="s" x="690" y="186">any dataflow link (always), or</text>
-        <text class="s" x="690" y="204">top 5 by score and score ≥ 0.38</text>
+        <text class="s" x="690" y="204">top 5 by score and score ≥ 0.38 → then the classifier judges each</text>
       </svg>
       </div>
       <figcaption>With one description per folder, a PR that duplicates only one model inside a multi-model
@@ -325,7 +324,8 @@
   <section>
     <h2>Where things live</h2>
     <div class="stores">
-      <div><b><code>data/watcher.db</code> (SQLite)</b><p>PR queue, folders, topics, scores, PR metadata. Derived state: safe to delete.</p></div>
+      <div><b><code>data/watcher.db</code> (SQLite)</b><p>PR queue, folders, topics, scores, classifier verdicts, alerts, events, PR states. Browsable in the dashboard.</p></div>
+      <div><b>OpenClaw (GB10 server)</b><p>Scheduled job "Slopulant PR watcher" (every 30 s) and the <code>watcher</code> agent that writes the notes.</p></div>
       <div><b><code>data/llm_cache.json</code></b><p>Identical LLM requests answered locally. File-locked so the demo and evals can share it.</p></div>
       <div><b><code>eval/company_manifest.json</code></b><p>Ground truth for the mock company: every system's tables, planted duplicates, PR labels. Never seen by the watcher.</p></div>
       <div><b><code>eval/run_eval.py</code> · <code>eval/prompt_lab.py</code></b><p>End-to-end recall@K on the test PRs; signal and prompt comparisons on ~200 queries.</p></div>

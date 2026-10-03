@@ -8,7 +8,7 @@ import numpy as np
 from . import config
 
 # Bump when SCHEMA changes: everything here is derived state, so old tables are dropped.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS pr_queue (
@@ -16,9 +16,10 @@ CREATE TABLE IF NOT EXISTS pr_queue (
     head_sha    TEXT    NOT NULL,
     -- base sha + topics/scoring version: a PR is re-scored when main moves or these change
     context     TEXT    NOT NULL,
-    status      TEXT    NOT NULL DEFAULT 'pending',  -- pending | done | error
+    status      TEXT    NOT NULL DEFAULT 'pending',  -- pending | running | done | error
     error       TEXT,
     enqueued_at REAL    NOT NULL,
+    claimed_at  REAL,
     PRIMARY KEY (pr_number, head_sha, context)
 );
 
@@ -75,13 +76,54 @@ CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT);
 
 -- PR metadata from the last poll, for display.
 CREATE TABLE IF NOT EXISTS prs (
-    number   INTEGER PRIMARY KEY,
-    title    TEXT NOT NULL,
-    author   TEXT NOT NULL,
-    branch   TEXT NOT NULL,
-    url      TEXT NOT NULL,
-    head_sha TEXT NOT NULL,
-    open     INTEGER NOT NULL
+    number    INTEGER PRIMARY KEY,
+    title     TEXT NOT NULL,
+    author    TEXT NOT NULL,
+    branch    TEXT NOT NULL,
+    url       TEXT NOT NULL,
+    head_sha  TEXT NOT NULL,
+    state     TEXT NOT NULL,     -- open | merged | closed
+    merged_at TEXT,
+    merge_sha TEXT
+);
+
+-- What happened, for the dashboard's activity log and the history graph.
+CREATE TABLE IF NOT EXISTS events (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts        REAL NOT NULL,
+    kind      TEXT NOT NULL,     -- pr_opened | pr_merged | pr_closed | scored | indexed | alert | reset | error ...
+    pr_number INTEGER,
+    message   TEXT NOT NULL,
+    data      TEXT               -- JSON
+);
+
+-- Duplicate classifier verdicts (dummy LLM classifier now; CLM classifier later).
+CREATE TABLE IF NOT EXISTS decisions (
+    pr_number   INTEGER NOT NULL,
+    head_sha    TEXT    NOT NULL,
+    base_sha    TEXT    NOT NULL,
+    pr_folder   TEXT    NOT NULL,
+    repo_id     TEXT    NOT NULL,
+    relation    TEXT    NOT NULL,  -- duplicate | partial | upstream | downstream | unrelated
+    is_duplicate INTEGER NOT NULL,
+    confidence  REAL    NOT NULL,
+    reason      TEXT    NOT NULL,
+    classifier  TEXT    NOT NULL,
+    ts          REAL    NOT NULL,
+    PRIMARY KEY (pr_number, head_sha, base_sha, pr_folder, repo_id)
+);
+
+-- The alert written by the OpenClaw agent, as posted to the PR.
+CREATE TABLE IF NOT EXISTS alerts (
+    pr_number   INTEGER NOT NULL,
+    head_sha    TEXT    NOT NULL,
+    base_sha    TEXT    NOT NULL,
+    summary     TEXT    NOT NULL,   -- the agent's paragraph
+    body        TEXT    NOT NULL,   -- full comment markdown
+    author_by   TEXT    NOT NULL,   -- openclaw:<agent> | fallback
+    comment_url TEXT,
+    ts          REAL    NOT NULL,
+    PRIMARY KEY (pr_number, head_sha, base_sha)
 );
 
 -- Scores from the most recent completed run of each open-or-closed PR.
@@ -99,11 +141,12 @@ JOIN (
 
 def connect():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")  # the dashboard reads while the watcher writes
     if conn.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
         conn.execute("DROP VIEW IF EXISTS latest_scores")
-        for table in ("pr_queue", "folder_cards", "folders", "topics", "scores", "kv", "prs"):
+        for table in ("pr_queue", "folder_cards", "folders", "topics", "scores", "kv", "prs", "events", "decisions", "alerts"):
             conn.execute(f"DROP TABLE IF EXISTS {table}")
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.executescript(SCHEMA)
@@ -126,6 +169,27 @@ def pending(conn):
     ).fetchall()
 
 
+def claim(conn, item):
+    """Marks a queue item as running; False if another run got it first."""
+    cur = conn.execute(
+        "UPDATE pr_queue SET status = 'running', claimed_at = ? "
+        "WHERE pr_number = ? AND head_sha = ? AND context = ? AND status = 'pending'",
+        (time.time(), item["pr_number"], item["head_sha"], item["context"]),
+    )
+    conn.commit()
+    return cur.rowcount == 1
+
+
+def requeue_stale(conn):
+    """Items left 'running' by a crashed run go back to pending."""
+    cur = conn.execute(
+        "UPDATE pr_queue SET status = 'pending', claimed_at = NULL WHERE status = 'running' AND claimed_at < ?",
+        (time.time() - config.STALE_RUN_SECONDS,),
+    )
+    conn.commit()
+    return cur.rowcount
+
+
 def mark(conn, item, status, error=None):
     conn.execute(
         "UPDATE pr_queue SET status = ?, error = ? WHERE pr_number = ? AND head_sha = ? AND context = ?",
@@ -134,8 +198,33 @@ def mark(conn, item, status, error=None):
     conn.commit()
 
 
+def add_event(conn, kind, message, pr_number=None, **data):
+    conn.execute("INSERT INTO events (ts, kind, pr_number, message, data) VALUES (?, ?, ?, ?, ?)",
+                 (time.time(), kind, pr_number, message, json.dumps(data) if data else None))
+    conn.commit()
+
+
+def put_decisions(conn, rows):
+    conn.executemany(
+        "INSERT OR REPLACE INTO decisions VALUES (:pr_number, :head_sha, :base_sha, :pr_folder, :repo_id, "
+        ":relation, :is_duplicate, :confidence, :reason, :classifier, :ts)", rows)
+    conn.commit()
+
+
+def put_alert(conn, row):
+    conn.execute(
+        "INSERT OR REPLACE INTO alerts VALUES (:pr_number, :head_sha, :base_sha, :summary, :body, :author_by, :comment_url, :ts)",
+        row)
+    conn.commit()
+
+
 def llm_cache_key():
-    return f"{config.LLM_MODEL}#topics-v{config.TOPICS_VERSION}"
+    return f"{config.llm()['model']}#topics-v{config.TOPICS_VERSION}"
+
+
+def index_key():
+    """kv key for "main has been indexed at sha X" with the active model."""
+    return f"indexed_base_sha:{llm_cache_key()}"
 
 
 def get_folder(conn, tree_sha):
@@ -187,13 +276,19 @@ def put_scores(conn, rows):
     conn.commit()
 
 
-def sync_prs(conn, prs):
-    """Upserts the currently open PRs; everything else is marked closed."""
-    conn.execute("UPDATE prs SET open = 0")
-    conn.executemany(
-        "INSERT OR REPLACE INTO prs VALUES (:number, :title, :author, :branch, :url, :head_sha, 1)", prs
-    )
+def upsert_prs(conn, prs):
+    """Insert/update PR rows; returns {number: previous_state} for PRs whose state changed."""
+    changed = {}
+    for pr in prs:
+        row = conn.execute("SELECT state FROM prs WHERE number = ?", (pr["number"],)).fetchone()
+        if row is None or row["state"] != pr["state"]:
+            changed[pr["number"]] = row["state"] if row else None
+        conn.execute(
+            "INSERT OR REPLACE INTO prs VALUES (:number, :title, :author, :branch, :url, :head_sha, :state, :merged_at, :merge_sha)",
+            {"merged_at": None, "merge_sha": None, **pr},
+        )
     conn.commit()
+    return changed
 
 
 def get_kv(conn, key):

@@ -5,3 +5,5 @@ __pycache__/
 *.jpeg
 .api_key
 data-*/
+.env
+.gh_key

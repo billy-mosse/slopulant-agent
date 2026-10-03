@@ -4,437 +4,479 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Slopulant Watcher</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
   :root {
-    --bg: #f6f7f9; --panel: #ffffff; --ink: #16181d; --muted: #646b78; --line: #e3e6eb;
-    --accent: #3b5bdb; --accent-soft: #e8edff; --good: #2b8a3e; --good-soft: #e6f4ea;
-    --warn: #b35c00; --warn-soft: #fff1e0; --bad: #c92a2a; --bad-soft: #fdecec;
-    --bar: #c5cfee; --code-bg: #f1f3f6;
+    --bg: #f5f6f8; --panel: #ffffff; --ink: #18202c; --muted: #5f6878; --line: #dfe3ea; --soft: #eef1f5;
+    --accent: #2f5d8a; --accent-soft: #e6eef7;
+    --dup: #b42318; --dup-soft: #fdecea; --part: #b54708; --part-soft: #fef0e2;
+    --flow: #1d5fa8; --flow-soft: #e5effa; --ok: #1f7a4d; --ok-soft: #e3f4eb; --warn: #9a6700; --warn-soft: #fff4d6;
+    --main-lane: #2f5d8a; --pr-lane: #7a56b0; --merged-lane: #1f7a4d;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #111317; --panel: #1a1d23; --ink: #e8eaee; --muted: #959cab; --line: #2b2f37;
-      --accent: #8ea6ff; --accent-soft: #232b45; --good: #69db7c; --good-soft: #1b3324;
-      --warn: #ffb35c; --warn-soft: #3a2a14; --bad: #ff8787; --bad-soft: #3d1d1d;
-      --bar: #34406b; --code-bg: #14161b;
+      color-scheme: dark;
+      --bg: #11151b; --panel: #181d25; --ink: #e5e9ef; --muted: #98a1b0; --line: #2c3440; --soft: #1f2630;
+      --accent: #8fb6e2; --accent-soft: #1e2a3a;
+      --dup: #ff8a80; --dup-soft: #3a1d1b; --part: #ffb26b; --part-soft: #3a2a18; --flow: #8ec1ff; --flow-soft: #1b2a3d;
+      --ok: #6fd39f; --ok-soft: #173326; --warn: #f2c14e; --warn-soft: #3a2f12;
+      --main-lane: #8fb6e2; --pr-lane: #c3a6ee; --merged-lane: #6fd39f;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  button { font: inherit; cursor: pointer; }
 
-  header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); }
-  .bar { max-width: 1100px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .brand { font-weight: 650; font-size: 16px; margin-right: auto; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .brand { font-weight: 600; font-size: 16px; margin-right: auto; }
   .brand small { color: var(--muted); font-weight: 400; margin-left: 6px; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
-    background: var(--code-bg); color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .pill select { border: 0; background: none; color: var(--ink); font: inherit; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 12px; white-space: nowrap; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .dot.live { background: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
-  .dot.stale { background: var(--bad); }
-  .dot.starting { background: var(--warn); }
-
-  nav { max-width: 1100px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; }
-  nav button { border: 0; background: none; color: var(--muted); padding: 8px 12px; font: inherit; cursor: pointer;
-    border-bottom: 2px solid transparent; }
+  .dot.live { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+  .dot.busy { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); animation: pulse 1.2s infinite; }
+  .dot.stale { background: var(--dup); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .dot.busy { animation: none; } }
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 5px 11px; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { color: var(--dup); border-color: var(--dup); }
+  .btn.danger.armed { background: var(--dup); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: progress; }
+  nav { max-width: 1200px; margin: 0 auto; padding: 0 16px; display: flex; gap: 2px; overflow-x: auto; }
+  nav button { border: 0; background: none; color: var(--muted); padding: 8px 12px; border-bottom: 2px solid transparent; white-space: nowrap; }
   nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  nav .count { font-size: 11px; background: var(--soft); border-radius: 8px; padding: 0 6px; margin-left: 4px; }
 
-  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
-  .hint { color: var(--muted); margin: 0 0 16px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
-  .panel-head { padding: 12px 16px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
-  .panel-head h3 { margin: 0; font-size: 15px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 60px; }
+  .hint { color: var(--muted); margin: 0 0 14px; max-width: 90ch; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 10; max-width: 90vw; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+  .panel-head { padding: 11px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .panel-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .grow { margin-left: auto; display: flex; gap: 6px; }
   .meta { color: var(--muted); font-size: 12.5px; }
-  .tag { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; }
-  .tag.done { background: var(--good-soft); color: var(--good); }
-  .tag.pending { background: var(--warn-soft); color: var(--warn); }
-  .tag.error { background: var(--bad-soft); color: var(--bad); }
-  .tag.closed { background: var(--code-bg); color: var(--muted); }
-  .tag.cand { background: var(--accent-soft); color: var(--accent); }
+  .empty { padding: 26px 16px; color: var(--muted); text-align: center; }
 
-  .card-desc { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
-  .card-desc .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .chip { padding: 1px 7px; border-radius: 5px; background: var(--code-bg); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-  .arrow { color: var(--muted); }
-  .topic { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
-  .topic p { margin: 0; padding: 0; }
-  .topic-name { font-weight: 650; }
-  .index-grid .topic { margin: 0 16px 12px; }
-  .index-grid .topic .chips { padding: 0; }
-  .topicmatch { color: var(--ink); font-weight: 600; }
-  .chip.kw { background: var(--accent-soft); color: var(--accent); font-family: inherit; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; background: var(--soft); color: var(--muted); white-space: nowrap; }
+  .chip.open { background: var(--accent-soft); color: var(--accent); }
+  .chip.merged { background: var(--ok-soft); color: var(--ok); }
+  .chip.closed { background: var(--soft); color: var(--muted); }
+  .chip.running, .chip.pending, .chip.new { background: var(--warn-soft); color: var(--warn); }
+  .chip.error { background: var(--dup-soft); color: var(--dup); }
+  .chip.duplicate { background: var(--dup-soft); color: var(--dup); }
+  .chip.partial { background: var(--part-soft); color: var(--part); }
+  .chip.upstream, .chip.downstream { background: var(--flow-soft); color: var(--flow); }
+  .chip.unrelated { background: var(--soft); color: var(--muted); }
+  .chip.kw { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+  .chip.table { font-family: "IBM Plex Mono", monospace; font-weight: 400; }
 
+  .alert { margin: 12px 16px; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); border: 1px solid var(--line); }
+  .alert .who { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .topics { padding: 12px 16px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+  .topic { border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; display: grid; gap: 5px; }
+  .topic-name { font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+
+  .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
-    font-weight: 600; padding: 8px 16px; border-bottom: 1px solid var(--line); }
-  td { padding: 9px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
-  tr.dim td { opacity: .55; }
-  .rank { color: var(--muted); width: 36px; }
-  .folder { font-weight: 600; }
-  .scorecell { width: 190px; }
-  .scorebar { position: relative; height: 18px; background: var(--code-bg); border-radius: 4px; overflow: hidden; }
-  .scorebar span { position: absolute; inset: 0 auto 0 0; background: var(--bar); }
-  .scorebar.flow span { background: var(--good-soft); }
-  .scorebar b { position: relative; padding-left: 6px; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums; }
-  .floor { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); opacity: .6; }
-  .why { font-size: 12.5px; color: var(--muted); }
-  .why .mono { color: var(--ink); }
-  .flow { color: var(--good); font-weight: 600; }
-  .more { display: block; width: 100%; padding: 8px; border: 0; border-top: 1px solid var(--line);
-    background: none; color: var(--accent); cursor: pointer; font: inherit; font-size: 12.5px; }
-  .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
-  details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+  tr.dim td { opacity: .5; }
+  .score { font-variant-numeric: tabular-nums; }
+  .why { color: var(--muted); font-size: 12.5px; max-width: 46ch; }
+  .more { width: 100%; padding: 7px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--accent); font-size: 12.5px; }
 
-  .try-grid { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 16px; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  input, textarea, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
-    border-radius: 7px; padding: 7px 10px; }
-  textarea { width: 100%; min-height: 280px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; tab-size: 4; }
-  button.primary { background: var(--accent); color: white; border: 0; border-radius: 7px; padding: 8px 16px;
-    font: inherit; font-weight: 600; cursor: pointer; }
-  button.primary:disabled { opacity: .5; cursor: progress; }
-  .index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  /* history graph */
+  .graph { padding: 8px 6px 12px; }
+  .graph svg { display: block; }
+  .g-main { stroke: var(--main-lane); } .g-pr { stroke: var(--pr-lane); } .g-merged { stroke: var(--merged-lane); }
+  .g-node-main { fill: var(--main-lane); } .g-node-pr { fill: var(--pr-lane); } .g-node-merged { fill: var(--merged-lane); }
+  .g-sha { fill: var(--muted); font: 500 11.5px "IBM Plex Mono", monospace; }
+  .g-subj { fill: var(--ink); font: 500 13px "IBM Plex Sans", sans-serif; }
+  .g-auth { fill: var(--muted); font: 400 12px "IBM Plex Sans", sans-serif; }
+  .g-tag { font: 600 11px "IBM Plex Sans", sans-serif; }
+
+  /* database */
+  .dbbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
+  .dbbar button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .dbbar input { margin-left: auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); font: inherit; min-width: 220px; }
+  .cell { max-width: 380px; max-height: 3.2em; overflow: hidden; font-size: 12.5px; }
+  .cell.open { max-height: none; white-space: pre-wrap; }
+  td.clickable { cursor: pointer; }
+
+  .events td { font-size: 13px; }
+  .index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
   .index-grid .panel { margin: 0; }
-  .index-grid p { margin: 0; padding: 12px 16px; font-size: 13px; }
-  .index-grid .chips { padding: 0 16px 12px; }
-  pre.err { white-space: pre-wrap; color: var(--bad); padding: 12px 16px; margin: 0; }
-  @media (max-width: 640px) {
-    .scorecell { width: 110px; }
-    td, th { padding: 8px 10px; }
-    .hide-sm { display: none; }
-  }
+  .index-grid .topic { margin: 10px 14px; }
+  @media (max-width: 640px) { td, th { padding: 7px 8px; } .dbbar input { min-width: 0; width: 100%; } }
 </style>
 </head>
 <body>
 <header>
   <div class="bar">
-    <div class="brand">Slopulant <small>PR overlap watcher</small></div>
-    <span class="pill" id="status"><span class="dot starting"></span>connecting…</span>
+    <div class="brand">Slopulant <small>overlap watcher · OpenClaw</small></div>
+    <span class="pill" id="status"><span class="dot"></span>connecting…</span>
     <span class="pill" id="repo"></span>
-    <span class="pill mono" id="models"></span>
+    <label class="pill" for="model">model <select id="model"></select></label>
+    <button class="btn" id="tick-btn" title="Run a watcher tick now">Run now</button>
+    <button class="btn" id="baseline-btn" title="Remember the current main + open PRs as the pre-demo state">Save baseline</button>
+    <button class="btn danger" id="reset-btn" title="Force-push main back and restore the baseline PRs">Reset demo</button>
   </div>
-  <nav>
-    <button data-tab="prs" class="on">Pull requests</button>
+  <nav id="tabs">
+    <button data-tab="prs" class="on">Pull requests<span class="count" id="n-open"></span></button>
+    <button data-tab="catalog">Demo PRs</button>
+    <button data-tab="history">History</button>
+    <button data-tab="activity">Activity</button>
+    <button data-tab="db">Database</button>
+    <button data-tab="index">Topics index</button>
     <button data-tab="try">Try it</button>
-    <button data-tab="index">Index (main)</button>
   </nav>
 </header>
 
 <main>
   <section id="tab-prs">
-    <p class="hint">Open a PR on the company repo and it shows up here within one poll.
-      For each folder the PR touches, every other folder on <code>main</code> is ranked.
-      <span class="tag cand">candidate</span> rows are what the next stage would receive
-      (top <span id="k"></span> above <span id="floor"></span>, plus any data-flow link).
-      Each folder is split into topics (one per model/pipeline/tool); score = best-matching topic pair, mean of description and keyword similarity. Data-flow links (green) are always surfaced.</p>
+    <p class="hint">Open PRs on <span class="mono" id="repo-name"></span>. The OpenClaw job polls every
+      <span id="poll"></span>s: each PR folder is split into topics and compared with every folder on main
+      (candidates = shared-table links + top <span id="k"></span> similar topics ≥ <span id="floor"></span>),
+      the classifier judges each candidate, and the OpenClaw agent writes the <code>[oc]</code> comment on the PR.</p>
     <div id="prs"><div class="empty">Loading…</div></div>
   </section>
 
+  <section id="tab-catalog" hidden>
+    <p class="hint">Test PRs from the eval. Opening one creates (or reopens) a real PR on GitHub; the watcher
+      picks it up on its next tick. Merging uses a merge commit so the PR's folders land on main unchanged.</p>
+    <div class="panel"><div class="scroll"><table>
+      <thead><tr><th>Branch</th><th>Title</th><th>Author</th><th>Latest PR</th><th></th></tr></thead>
+      <tbody id="catalog"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table></div></div>
+  </section>
+
+  <section id="tab-history" hidden>
+    <p class="hint">main (newest on top) with merged PRs (green) and open PRs (purple). Each PR shows the topics found
+      and what the watcher flagged.</p>
+    <div class="panel"><div class="graph scroll" id="graph"><div class="empty">Loading…</div></div></div>
+  </section>
+
+  <section id="tab-activity" hidden>
+    <div class="panel"><div class="scroll"><table class="events">
+      <thead><tr><th>Time</th><th>Event</th><th>PR</th><th>What happened</th></tr></thead>
+      <tbody id="events"></tbody>
+    </table></div></div>
+  </section>
+
+  <section id="tab-db" hidden>
+    <div class="dbbar" id="dbtables"></div>
+    <div class="panel"><div class="scroll" id="dbtable"><div class="empty">Pick a table.</div></div></div>
+  </section>
+
   <section id="tab-try" hidden>
-    <p class="hint">Paste the code of a new system and score it against <code>main</code>
-      exactly like a PR would be, without opening one. It takes a few seconds: the local LLM writes the card first.</p>
-    <div class="panel">
-      <div class="try-grid">
-        <div class="row">
-          <label>Folder name <input id="try-folder" value="spam_filter_v2" size="22"></label>
-          <label>Example
-            <select id="try-preset"></select>
-          </label>
-          <button class="primary" id="try-go">Score against main</button>
-          <span class="meta" id="try-status"></span>
-        </div>
-        <textarea id="try-code" spellcheck="false"></textarea>
-      </div>
-    </div>
+    <p class="hint">Quick test without a PR: paste code for a new system and see its topics, the candidates on main and
+      the classifier's verdicts, using the model selected at the top. Examples come from the eval, with the expected answer.</p>
+    <div class="panel"><div style="padding:12px 16px;display:grid;gap:10px">
+      <div class="chips"><label>Folder <input id="try-folder" value="my_system" style="padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit"></label>
+        <select id="try-preset" class="btn"></select><button class="btn primary" id="try-go">Score against main</button>
+        <span class="meta" id="try-status"></span></div>
+      <textarea id="try-code" spellcheck="false" style="width:100%;min-height:240px;font:12.5px/1.45 'IBM Plex Mono',monospace;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></textarea>
+    </div></div>
     <div id="try-result"></div>
   </section>
 
   <section id="tab-index" hidden>
-    <p class="hint">What the watcher knows about each folder on <code>main</code>: its topics (one per model,
-      pipeline or tool), each with an LLM-written description, keywords and the tables it reads and writes.
-      Cached by git tree hash, rebuilt only when a folder changes.</p>
+    <p class="hint">Topics of every folder on main: one per model, pipeline or tool. Cached by git tree hash, so
+      folders merged from a PR reuse the topics computed for that PR.</p>
     <div class="index-grid" id="index"></div>
   </section>
 </main>
+<div class="toast" id="toast" hidden></div>
 
 <script>
-const PRESETS = {
-  "Duplicate: review spam filter": ["spam_filter_v2", `"""Spam filter for product reviews.
-
-Drop reviews with links or banned words before they're published.
-
-Input:  reviews.raw (review_id, sku, text)
-Output: reviews.clean
-"""
-import re
-
-BANNED = {"scam", "fake", "garbage", "idiot"}
-
-
-def is_spam(text):
-    lowered = text.lower()
-    if re.search(r"https?://", lowered):
-        return True
-    words = re.findall(r"[a-z]+", lowered)
-    return any(w in BANNED for w in words)
-
-
-def filter_reviews(reviews):
-    kept = []
-    for r in reviews:
-        if not is_spam(r["text"]):
-            kept.append(r)
-    return kept
-`],
-  "Upstream user: customer LTV": ["customer_ltv", `"""Customer lifetime value.
-
-Predicts 12-month spend per customer for marketing budget allocation.
-
-Input:  features.customer_embeddings (customer_id, vector)
-Output: scores.customer_ltv (customer_id, ltv)
-"""
-import numpy as np
-
-
-def ltv(customer_vec, weights, base=50.0):
-    return float(base * np.exp(customer_vec @ weights))
-
-
-def score_all(customer_embeddings, weights):
-    out = {}
-    for customer_id, vec in customer_embeddings.items():
-        out[customer_id] = round(ltv(vec, weights), 2)
-    return out
-`],
-  "Duplicate: similar products": ["similar_products", `"""Similar products carousel.
-
-Bag-of-words cosine similarity between product titles + descriptions.
-
-Input:  catalog.products (sku, title, description)
-Output: recs.similar (sku, other_sku, score)
-"""
-from collections import Counter
-import math
-
-
-def bow(text):
-    return Counter(w for w in text.lower().split() if len(w) > 2)
-
-
-def cosine(a, b):
-    dot = sum(a[w] * b[w] for w in a)
-    na = math.sqrt(sum(v * v for v in a.values()))
-    nb = math.sqrt(sum(v * v for v in b.values()))
-    return dot / (na * nb) if na and nb else 0.0
-
-
-def similar(products, k=5):
-    vecs = {p["sku"]: bow(p["title"] + " " + p["description"]) for p in products}
-    out = {}
-    for a in vecs:
-        scored = sorted(((b, cosine(vecs[a], vecs[b])) for b in vecs if b != a), key=lambda x: -x[1])
-        out[a] = scored[:k]
-    return out
-`],
-  "Unrelated: warehouse slotting": ["warehouse_slotting", `"""Warehouse slotting.
-
-Move fast-moving SKUs to bins closest to the packing station.
-
-Input:  logistics.picks (sku, bin, ts)
-Output: logistics.slot_plan (sku, bin)
-"""
-from collections import Counter
-
-
-def pick_velocity(picks, days=30):
-    counts = Counter(p["sku"] for p in picks)
-    return {sku: n / days for sku, n in counts.items()}
-
-
-def slot_plan(picks, bins_by_distance):
-    velocity = pick_velocity(picks)
-    ranked = sorted(velocity, key=lambda s: -velocity[s])
-    return dict(zip(ranked, bins_by_distance))
-`],
-  "Blank": ["my_system", ""],
-};
-
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const ago = (ts, now) => { const s = Math.max(0, Math.round((now ?? Date.now() / 1000) - ts)); return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`; };
+const clock = (ts) => new Date(ts * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"});
+let S = null, tab = "prs";
 const expanded = new Set();
-let lastState = null;
 
-// Tabs
-document.querySelectorAll("nav button").forEach((b) => b.onclick = () => {
-  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));
-  ["prs", "try", "index"].forEach((t) => $("#tab-" + t).hidden = t !== b.dataset.tab);
+function toast(msg, ms = 3500) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms); }
+async function getJSON(url) { const r = await fetch(url); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
+async function action(name, body = {}) {
+  const r = await fetch(`/api/action/${name}`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j;
+}
+
+// tabs
+document.querySelectorAll("#tabs button").forEach((b) => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  ["prs", "catalog", "history", "activity", "db", "index", "try"].forEach((t) => $("#tab-" + t).hidden = t !== tab);
+  refreshTab(true);
 });
 
-function flowLabel(flow) {
-  const [dir, tables] = flow.split(":");
-  return `<span class="flow">${dir === "upstream" ? "↑ reads its output" : "↓ it reads ours"}</span>
-    <span class="mono">${esc(tables)}</span>`;
+// ---- header ---------------------------------------------------------------
+function renderHeader(s) {
+  let dot = "stale", text = "watcher hasn't run yet";
+  if (s.tick_running_since) { dot = "busy"; text = `tick running (${Math.round(s.now - s.tick_running_since)}s)`; }
+  else if (s.last_tick) {
+    const age = s.now - s.last_tick;
+    dot = age < s.poll_seconds * 3 ? "live" : "stale";
+    text = `${dot === "live" ? "listening" : "idle"} · last tick ${ago(s.last_tick, s.now)}` + (s.last_tick_seconds ? ` (${s.last_tick_seconds}s)` : "");
+  }
+  $("#status").innerHTML = `<span class="dot ${dot}"></span>${esc(text)}`;
+  $("#repo").innerHTML = `<a href="https://github.com/${esc(s.repo)}" target="_blank" rel="noopener">${esc(s.repo)}</a>` +
+    (s.base_sha ? ` <span class="mono">main@${s.base_sha.slice(0, 7)}</span>` : "");
+  const sel = $("#model");
+  if (!sel.dataset.ready) {
+    sel.innerHTML = Object.entries(s.profiles).map(([k, p]) => `<option value="${k}" ${p.available ? "" : "disabled"}>${esc(p.label)}${p.available ? "" : " (no key)"}</option>`).join("");
+    sel.dataset.ready = "1";
+    sel.onchange = async () => { try { await action("model", {profile: sel.value}); toast(`Model: ${sel.selectedOptions[0].textContent}. main gets indexed with it on the next tick (cached after the first time).`, 6000); } catch (e) { toast("Failed: " + e.message); } refresh(); };
+  }
+  if (document.activeElement !== sel) sel.value = s.llm.profile;
+  $("#repo-name").textContent = s.repo; $("#poll").textContent = s.poll_seconds; $("#k").textContent = s.top_k; $("#floor").textContent = s.min_candidate_score;
+  const open = s.prs.filter((p) => p.state === "open").length; $("#n-open").textContent = open;
+  $("#baseline-btn").title = s.baseline ? `Baseline: main@${s.baseline.main_sha.slice(0, 7)}, ${s.baseline.open_branches.length} open PRs (saved ${ago(s.baseline.saved_at, s.now)}). Click to replace.` : "Remember the current main + open PRs as the pre-demo state";
 }
 
-function rowsTable(rows, key, floor) {
-  const showAll = expanded.has(key);
-  const visible = showAll ? rows : rows.filter((r) => r.candidate);
-  const hidden = rows.length - visible.length;
-  const body = visible.map((r) => {
-    const why = (r.dataflow ? flowLabel(r.dataflow) + "<br>" : "") +
-        `<span class="topicmatch">${esc(r.pr_topic)} ↔ ${esc(r.repo_topic)}</span><br>` +
-        `description ${r.desc_score.toFixed(2)} · keywords ${r.kw_score.toFixed(2)} · code ${r.code_score.toFixed(2)}` +
-        (r.kw_match ? `<br>shared: <span class="mono">${esc(r.kw_match)}</span>` : "") +
-        (r.code_match ? `<br><span class="mono">${esc(r.code_match)}</span>` : "");
-    return `<tr class="${r.candidate ? "" : "dim"}">
-      <td class="rank">${r.rank}</td>
-      <td><span class="folder">${esc(r.repo_id)}</span> ${r.candidate ? '<span class="tag cand">candidate</span>' : ""}</td>
-      <td class="scorecell"><div class="scorebar ${r.dataflow ? "flow" : ""}">
-        <span style="width:${Math.max(0, Math.min(1, r.score)) * 100}%"></span>
-        <i class="floor" style="left:${floor * 100}%"></i><b>${r.score.toFixed(2)}</b></div></td>
-      <td class="why">${why}</td></tr>`;
-  }).join("");
-  const empty = visible.length ? "" : `<tr><td colspan="4" class="empty">No candidates: nothing on main clears ${floor}.</td></tr>`;
-  const more = hidden > 0 ? `<button class="more" data-key="${esc(key)}">Show all ${rows.length} folders</button>`
-    : (showAll && rows.some((r) => !r.candidate) ? `<button class="more" data-key="${esc(key)}">Candidates only</button>` : "");
-  return `<table><thead><tr><th>#</th><th>Folder on main</th><th>Score</th><th class="hide-sm">Why</th></tr></thead>
-    <tbody>${body}${empty}</tbody></table>${more}`;
-}
-
-function topicChips(t) {
-  const io = `<div class="chips">${t.inputs.map((x) => `<span class="chip">${esc(x)}</span>`).join("") || '<span class="meta">no inputs found</span>'}
-    <span class="arrow">→</span>${t.outputs.map((x) => `<span class="chip">${esc(x)}</span>`).join("") || '<span class="meta">no outputs found</span>'}</div>`;
-  const kws = `<div class="chips">${(t.keywords || []).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>`;
-  return kws + io;
-}
-
+// ---- PRs ------------------------------------------------------------------
 function topicsBlock(entry, title) {
   if (!entry) return "";
   const n = entry.topics.length;
-  const chunks = entry.n_chunks > 1 ? ` · read in ${entry.n_chunks} chunks and merged` : "";
-  const topics = entry.topics.map((t) => `<div class="topic"><div class="topic-name">${esc(t.name)}</div>
-    <div>${esc(t.description)}</div>${topicChips(t)}</div>`).join("");
-  return `<div class="card-desc"><div class="label">${esc(title)} — ${n} topic${n === 1 ? "" : "s"}${chunks}</div>${topics}
-    <details><summary>${entry.func_names.length} functions embedded (evidence only)</summary>
-    <div class="chips" style="margin-top:6px">${entry.func_names.map((f) => `<span class="chip">${esc(f)}</span>`).join("")}</div></details></div>`;
+  return `<div class="topics"><div class="label">${esc(title)} · ${n} topic${n === 1 ? "" : "s"}${entry.n_chunks > 1 ? ` · ${entry.n_chunks} chunks merged` : ""}</div>
+    ${entry.topics.map((t) => `<div class="topic"><div class="topic-name">${esc(t.name)}</div><div>${esc(t.description)}</div>
+      <div class="chips">${t.keywords.slice(0, 12).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div>
+      <div class="chips"><span class="meta">reads</span>${t.inputs.map((x) => `<span class="chip table">${esc(x)}</span>`).join("") || '<span class="meta">-</span>'}
+        <span class="meta">writes</span>${t.outputs.map((x) => `<span class="chip table">${esc(x)}</span>`).join("") || '<span class="meta">-</span>'}</div></div>`).join("")}</div>`;
 }
 
-functions embedded</summary>
-    <div class="chips" style="margin-top:6px">${card.func_names.map((f) => `<span class="chip">${esc(f)}</span>`).join("")}</div></details></div>`;
+function rowsTable(rows, key) {
+  const all = expanded.has(key), shown = all ? rows : rows.filter((r) => r.candidate);
+  const body = shown.map((r) => {
+    const d = r.decision;
+    const verdict = d ? `<span class="chip ${esc(d.relation)}">${esc(d.relation)}</span> <span class="meta">${(+d.confidence).toFixed(2)}</span><div class="why">${esc(d.reason)}</div>` : (r.candidate ? '<span class="meta">pending</span>' : "");
+    const flow = r.dataflow ? `<div><span class="chip upstream">${esc(r.dataflow.split(":")[0])}</span> <span class="mono">${esc(r.dataflow.split(":")[1])}</span></div>` : "";
+    return `<tr class="${r.candidate ? "" : "dim"}"><td><b>${esc(r.repo_id)}</b><div class="meta">${esc(r.repo_topic)}</div></td>
+      <td class="score">${(+r.score).toFixed(2)}<div class="meta">desc ${(+r.desc_score).toFixed(2)} · kw ${(+r.kw_score).toFixed(2)}</div></td>
+      <td><div class="meta">${esc(r.pr_topic)} ↔ ${esc(r.repo_topic)}</div>${flow}${r.kw_match ? `<div class="why">shared: ${esc(r.kw_match)}</div>` : ""}</td>
+      <td>${verdict}</td></tr>`;
+  }).join("") || `<tr><td colspan="4" class="empty">No candidates.</td></tr>`;
+  const n = rows.length - rows.filter((r) => r.candidate).length;
+  const more = n ? `<button class="more" data-expand="${esc(key)}">${all ? "Candidates only" : `Show all ${rows.length} folders`}</button>` : "";
+  return `<div class="scroll"><table><thead><tr><th>Folder on main · topic</th><th>Score</th><th>Evidence</th><th>Classifier</th></tr></thead><tbody>${body}</tbody></table></div>${more}`;
 }
 
 function renderPRs(s) {
-  if (!s.prs.length) {
-    $("#prs").innerHTML = `<div class="panel"><div class="empty">No PRs seen yet. Open one on
-      <a href="https://github.com/${esc(s.repo)}/pulls" target="_blank">${esc(s.repo)}</a>.</div></div>`;
-    return;
-  }
-  $("#prs").innerHTML = s.prs.map((pr) => {
-    const status = !pr.open ? "closed" : pr.status;
-    const stale = pr.scored_sha && pr.scored_sha !== pr.head_sha;
-    const statusText = {done: "scored", pending: "scoring…", error: "error", closed: "closed", new: "queued"}[status] || status;
-    const folders = pr.folders.map((f) => topicsBlock(f.entry, `What the LLM thinks ${f.folder}/ is (on the PR branch)`)
-      + rowsTable(f.rows, `${pr.number}:${f.folder}`, s.min_candidate_score)).join("");
-    const body = folders || (pr.status === "error"
-      ? `<pre class="err">${esc(pr.error)}</pre>`
-      : `<div class="empty">${pr.status === "done" ? "This PR doesn't touch any top-level folder." : "Waiting for the watcher…"}</div>`);
-    return `<div class="panel">
-      <div class="panel-head">
-        <h3><a href="${esc(pr.url)}" target="_blank">#${pr.number}</a> ${esc(pr.title)}</h3>
-        <span class="tag ${status === "new" ? "pending" : status}">${statusText}</span>
-        <span class="meta">${esc(pr.commit_author || pr.author)} · <span class="mono">${esc(pr.branch)}</span> @ <span class="mono">${pr.head_sha.slice(0, 7)}</span>
-        ${stale ? ` · showing results for <span class="mono">${pr.scored_sha.slice(0, 7)}</span>` : ""}</span>
-      </div>${body}</div>`;
+  const prs = s.prs.filter((p) => p.state === "open" || p.folders.length);
+  if (!prs.length) { $("#prs").innerHTML = `<div class="panel"><div class="empty">No open PRs. Open one from <b>Demo PRs</b>.</div></div>`; return; }
+  $("#prs").innerHTML = prs.map((pr) => {
+    const status = pr.state !== "open" ? pr.state : pr.status === "done" ? "scored" : pr.status;
+    const chipClass = pr.state !== "open" ? pr.state : pr.status;
+    const acts = pr.state === "open" ? `<div class="grow"><button class="btn primary" data-merge="${pr.number}">Merge</button><button class="btn" data-close="${pr.number}">Close</button></div>` : "";
+    const alert = pr.alert ? `<div class="alert">${esc(pr.alert.summary)}<div class="who">${pr.alert.author_by.startsWith("openclaw") ? "written by the OpenClaw agent" : "template (OpenClaw unavailable)"}${pr.alert.comment_url ? ` · <a href="${esc(pr.alert.comment_url)}" target="_blank" rel="noopener">[oc] comment on GitHub</a>` : ""}</div></div>` : "";
+    const folders = pr.folders.map((f) => topicsBlock(f.entry, `${f.folder}/ on the PR branch`) + rowsTable(f.rows, `${pr.number}:${f.folder}`)).join("");
+    const body = folders || (pr.error ? `<pre class="mono" style="padding:12px 16px;white-space:pre-wrap;color:var(--dup)">${esc(pr.error.slice(-800))}</pre>` : `<div class="empty">Waiting for the watcher…</div>`);
+    return `<div class="panel"><div class="panel-head"><h3><a href="${esc(pr.url)}" target="_blank" rel="noopener">#${pr.number}</a> ${esc(pr.title)}</h3>
+      <span class="chip ${esc(chipClass)}">${esc(status)}</span><span class="meta">${esc(pr.commit_author || pr.author)} · <span class="mono">${esc(pr.branch)}</span> @ <span class="mono">${pr.head_sha.slice(0, 7)}</span></span>${acts}</div>
+      ${alert}${body}</div>`;
   }).join("");
 }
 
+// ---- demo catalog ----------------------------------------------------------
+async function renderCatalog(force) {
+  try {
+    const items = await getJSON("/api/catalog" + (force ? "?force=1" : ""));
+    $("#catalog").innerHTML = items.map((c) => `<tr><td class="mono">${esc(c.branch)}</td><td>${esc(c.title)}</td><td>${esc(c.author || "")}</td>
+      <td>${c.pr_number ? `<a href="https://github.com/${esc(S?.repo)}/pull/${c.pr_number}" target="_blank" rel="noopener">#${c.pr_number}</a> <span class="chip ${esc(c.state)}">${esc(c.state)}</span>` : '<span class="meta">none</span>'}</td>
+      <td>${c.state === "open" ? "" : `<button class="btn primary" data-open="${esc(c.branch)}">${c.state === "merged" ? "Open again" : "Open PR"}</button>`}</td></tr>`).join("")
+      || `<tr><td colspan="5" class="empty">No branches.</td></tr>`;
+  } catch (e) { $("#catalog").innerHTML = `<tr><td colspan="5" class="empty">Couldn't load: ${esc(e.message)}</td></tr>`; }
+}
+
+// ---- history graph ---------------------------------------------------------
+async function renderHistory() {
+  let h; try { h = await getJSON("/api/history"); } catch (e) { $("#graph").innerHTML = `<div class="empty">Couldn't load: ${esc(e.message)}</div>`; return; }
+  const ROW = 46, LANE = 26, X0 = 26, rows = [], edges = [];
+  // open PR branches on top, one lane each
+  h.open.forEach((pr, i) => {
+    const lane = 1 + i, first = rows.length;
+    (pr.commits.length ? pr.commits : [{short: "", subject: pr.title, author: ""}]).forEach((c, j) =>
+      rows.push({lane, cls: "pr", c, pr: j === 0 ? pr : null, state: "open"}));
+    edges.push({type: "fork", lane, from: rows.length - 1, forkSha: pr.fork});
+    edges.push({type: "lane", lane, a: first, b: rows.length - 1, cls: "pr"});
+  });
+  const mainIndex = {};
+  h.commits.forEach((c) => {
+    mainIndex[c.sha] = rows.length;
+    rows.push({lane: 0, cls: "main", c, pr: c.pr, state: c.pr ? "merged" : null, merge: c.parents.length > 1});
+    if (c.merged.length) {
+      const top = rows.length;
+      c.merged.forEach((m) => rows.push({lane: 1, cls: "merged", c: m}));
+      edges.push({type: "out", lane: 1, from: top - 1, to: top});
+      edges.push({type: "lane", lane: 1, a: top, b: rows.length - 1, cls: "merged"});
+      edges.push({type: "in", lane: 1, from: rows.length - 1});
+    }
+  });
+  const maxLane = Math.max(1, ...rows.map((r) => r.lane)), TX = X0 + (maxLane + 1) * LANE + 8;
+  const W = 1150, H = rows.length * ROW + 20, y = (i) => 20 + i * ROW, x = (l) => X0 + l * LANE;
+  const mainRows = rows.map((r, i) => r.lane === 0 ? i : null).filter((i) => i !== null);
+  const nextMain = (i) => mainRows.find((m) => m > i) ?? rows.length;
+  let svg = "";
+  if (mainRows.length) svg += `<line class="g-main" x1="${x(0)}" y1="${y(mainRows[0])}" x2="${x(0)}" y2="${y(mainRows[mainRows.length - 1]) + 14}" stroke-width="3"/>`;
+  edges.forEach((e) => {
+    const lc = `g-${e.cls || "pr"}`;
+    if (e.type === "lane" && e.b > e.a) svg += `<line class="${lc}" x1="${x(e.lane)}" y1="${y(e.a)}" x2="${x(e.lane)}" y2="${y(e.b)}" stroke-width="3"/>`;
+    if (e.type === "out") svg += `<path class="g-merged" d="M${x(0)},${y(e.from)} C${x(0)},${y(e.from) + 22} ${x(1)},${y(e.to) - 22} ${x(1)},${y(e.to)}" fill="none" stroke-width="3"/>`;
+    if (e.type === "in") { const t = nextMain(e.from); svg += `<path class="g-merged" d="M${x(1)},${y(e.from)} C${x(1)},${y(e.from) + 24} ${x(0)},${y(t) - 24} ${x(0)},${y(Math.min(t, rows.length - 1))}" fill="none" stroke-width="3"/>`; }
+    if (e.type === "fork") {
+      const t = mainIndex[e.forkSha] ?? (mainRows.length ? mainRows[mainRows.length - 1] : e.from);
+      svg += `<path class="g-pr" d="M${x(e.lane)},${y(e.from)} C${x(e.lane)},${y(e.from) + 26} ${x(0)},${y(t) - 26} ${x(0)},${y(t)}" fill="none" stroke-width="3" stroke-dasharray="${e.lane ? "" : ""}"/>`;
+    }
+  });
+  rows.forEach((r, i) => {
+    const cx = x(r.lane), cy = y(i), node = r.cls === "main" ? "g-node-main" : r.cls === "merged" ? "g-node-merged" : "g-node-pr";
+    svg += r.merge ? `<circle cx="${cx}" cy="${cy}" r="8" class="${node}" stroke="var(--panel)" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="3" fill="var(--panel)"/>`
+                   : `<circle cx="${cx}" cy="${cy}" r="6.5" class="${node}" stroke="var(--panel)" stroke-width="2.5"/>`;
+    let tx = TX;
+    if (r.c.short) { svg += `<text class="g-sha" x="${tx}" y="${cy + 4}">${esc(r.c.short)}</text>`; tx += 66; }
+    if (r.c.sha && h.baseline && r.c.sha === h.baseline) { svg += tag(tx, cy, "baseline", "var(--warn)", "var(--warn-soft)"); tx += 70; }
+    if (r.pr) {
+      svg += tag(tx, cy, `#${r.pr.number} ${r.state || r.pr.state}`, r.state === "open" ? "var(--pr-lane)" : "var(--ok)", r.state === "open" ? "var(--accent-soft)" : "var(--ok-soft)");
+      tx += 22 + 7.2 * (`#${r.pr.number} ${r.state || r.pr.state}`).length;
+      const title = r.state === "open" ? r.pr.title : r.c.subject;
+      svg += `<text class="g-subj" x="${tx}" y="${cy + 4}">${esc(trunc(title, 52))}</text>`;
+      const topics = Object.values(r.pr.topics || {}).flat();
+      let bx = TX + 66, by = cy + 22;
+      const badges = [];
+      r.pr.duplicates.forEach((d) => badges.push(["dup: " + d, "var(--dup)", "var(--dup-soft)"]));
+      r.pr.connected.forEach((d) => badges.push(["linked: " + d, "var(--flow)", "var(--flow-soft)"]));
+      if (r.pr.scored && !badges.length) badges.push(["no overlap", "var(--ok)", "var(--ok-soft)"]);
+      if (!r.pr.scored && r.state === "open") badges.push(["scoring…", "var(--warn)", "var(--warn-soft)"]);
+      badges.slice(0, 4).forEach(([t, fg, bg]) => { svg += tag(bx, by, t, fg, bg, true); bx += 18 + 6.4 * t.length; });
+      if (topics.length) svg += `<text class="g-auth" x="${bx + 4}" y="${by + 4}">topics: ${esc(trunc(topics.join(" · "), 70))}</text>`;
+    } else {
+      svg += `<text class="g-subj" x="${tx}" y="${cy + 4}">${esc(trunc(r.c.subject, 70))}</text>`;
+      tx += 8 + 7 * Math.min(70, (r.c.subject || "").length);
+      if (r.c.author) svg += `<text class="g-auth" x="${tx}" y="${cy + 4}">${esc(r.c.author)}</text>`;
+    }
+  });
+  $("#graph").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Git history of main with merged and open PRs">${svg}</svg>`;
+}
+function trunc(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+function tag(x, cy, text, fg, bg, small) {
+  const w = (small ? 6.4 : 7.2) * text.length + 14, h = small ? 18 : 20;
+  return `<rect x="${x}" y="${cy - h / 2}" width="${w}" height="${h}" rx="5" fill="${bg}"/><text class="g-tag" x="${x + 7}" y="${cy + 4}" fill="${fg}">${esc(text)}</text>`;
+}
+
+// ---- activity ---------------------------------------------------------------
+async function renderActivity() {
+  try {
+    const ev = await getJSON("/api/events");
+    $("#events").innerHTML = ev.map((e) => { const d = e.data ? JSON.parse(e.data) : {};
+      return `<tr><td class="mono">${clock(e.ts)}</td><td><span class="chip ${e.kind === "error" ? "error" : e.kind === "pr_merged" ? "merged" : e.kind === "scored" ? "open" : ""}">${esc(e.kind)}</span></td>
+        <td>${e.pr_number ? "#" + e.pr_number : ""}</td><td>${esc(e.message)}${d.comment_url ? ` · <a href="${esc(d.comment_url)}" target="_blank" rel="noopener">comment</a>` : ""}</td></tr>`; }).join("")
+      || `<tr><td colspan="4" class="empty">Nothing yet.</td></tr>`;
+  } catch (e) { $("#events").innerHTML = `<tr><td colspan="4" class="empty">${esc(e.message)}</td></tr>`; }
+}
+
+// ---- database ----------------------------------------------------------------
+let dbName = "topics", dbOffset = 0, dbQ = "";
+async function renderDB() {
+  try {
+    const ts = await getJSON("/api/tables");
+    $("#dbtables").innerHTML = ts.map((t) => `<button class="btn ${t.name === dbName ? "on" : ""}" data-table="${t.name}">${t.name} <span class="meta">${t.count}</span></button>`).join("")
+      + `<input id="dbq" placeholder="Filter rows…" value="${esc(dbQ)}">`;
+    $("#dbq").oninput = (e) => { dbQ = e.target.value; dbOffset = 0; clearTimeout(renderDB.t); renderDB.t = setTimeout(renderDBTable, 250); };
+    await renderDBTable();
+  } catch (e) { $("#dbtable").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+async function renderDBTable() {
+  const t = await getJSON(`/api/table?name=${dbName}&offset=${dbOffset}&limit=50&q=${encodeURIComponent(dbQ)}`);
+  const head = t.columns.map((c) => `<th>${esc(c)}</th>`).join("");
+  const body = t.rows.map((r) => `<tr>${t.columns.map((c) => `<td class="clickable"><div class="cell">${esc(fmtCell(r[c]))}</div></td>`).join("")}</tr>`).join("");
+  const pager = `<div class="panel-head"><span class="meta">${t.total} rows · showing ${t.total ? t.offset + 1 : 0}–${Math.min(t.offset + t.limit, t.total)}</span>
+    <div class="grow"><button class="btn" data-page="-1" ${t.offset ? "" : "disabled"}>Previous</button><button class="btn" data-page="1" ${t.offset + t.limit < t.total ? "" : "disabled"}>Next</button></div></div>`;
+  $("#dbtable").innerHTML = pager + `<table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td class="empty">No rows.</td></tr>`}</tbody></table>`;
+}
+function fmtCell(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "number" && v > 1.6e9 && v < 2.2e9) return new Date(v * 1000).toLocaleString();
+  if (typeof v === "string" && (v.startsWith("[") || v.startsWith("{"))) { try { return JSON.stringify(JSON.parse(v), null, 1); } catch {} }
+  return String(v);
+}
+
+// ---- topics index ---------------------------------------------------------------
 function renderIndex(s) {
-  $("#index").innerHTML = s.index.map((c) => c.pending
-    ? `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="tag pending">indexing…</span></div></div>`
+  $("#index").innerHTML = s.index.map((c) => c.pending ? `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="chip pending">indexing</span></div></div>`
     : `<div class="panel"><div class="panel-head"><h3>${esc(c.folder)}</h3><span class="meta">${c.topics.length} topic${c.topics.length === 1 ? "" : "s"}${c.n_chunks > 1 ? ` · ${c.n_chunks} chunks` : ""}</span></div>
-       ${c.topics.map((t) => `<div class="topic"><div class="topic-name">${esc(t.name)}</div><p>${esc(t.description)}</p>${topicChips(t)}</div>`).join("")}</div>`
-  ).join("") || '<div class="empty">Indexing main…</div>';
+      ${c.topics.map((t) => `<div class="topic"><div class="topic-name">${esc(t.name)}</div><div>${esc(t.description)}</div>
+        <div class="chips">${t.keywords.slice(0, 10).map((k) => `<span class="chip kw">${esc(k)}</span>`).join("")}</div></div>`).join("")}</div>`).join("")
+    || `<div class="empty">main hasn't been indexed yet.</div>`;
 }
 
-function renderHeader(s) {
-  const age = s.last_tick ? s.now - s.last_tick : null;
-  let dot = "starting", text = "first pass running…";
-  if (age !== null) {
-    const live = age < s.poll_seconds * 3;
-    dot = live ? "live" : "stale";
-    text = live ? `watching · last poll ${Math.round(age)}s ago` : `watcher stopped? last poll ${Math.round(age)}s ago`;
-  }
-  $("#status").innerHTML = `<span class="dot ${dot}"></span>${text}`;
-  $("#repo").innerHTML = `<a href="https://github.com/${esc(s.repo)}" target="_blank">${esc(s.repo)}</a>` +
-    (s.base_sha ? ` <span class="mono">main@${s.base_sha.slice(0, 7)}</span>` : "");
-  $("#models").textContent = `${s.llm_model.split("/").pop()} · ${s.embed_model.split("/").pop()}`;
-  $("#k").textContent = s.top_k;
-  $("#floor").textContent = s.min_candidate_score;
+// ---- try it -----------------------------------------------------------------------
+let presetsLoaded = false;
+async function loadPresets() {
+  if (presetsLoaded) return; presetsLoaded = true;
+  const ps = await getJSON("/api/presets");
+  const sel = $("#try-preset");
+  sel.innerHTML = `<option value="">Example…</option>` + ps.map((p, i) => `<option value="${i}">${esc(p.name)}${p.expected.length ? " → " + esc(p.expected.join(", ")) : " (unrelated)"}</option>`).join("");
+  sel.onchange = () => { const p = ps[+sel.value]; if (p) { $("#try-folder").value = p.name; $("#try-code").value = p.code; } };
 }
-
-async function refresh() {
-  try {
-    const res = await fetch("/api/state");
-    const s = await res.json();
-    if (s.error) throw new Error(s.error);
-    lastState = s;
-    renderHeader(s); renderPRs(s); renderIndex(s);
-  } catch (e) {
-    $("#status").innerHTML = `<span class="dot stale"></span>can't reach server: ${esc(e.message)}`;
-  }
-}
-
-document.addEventListener("click", (e) => {
-  const key = e.target.dataset?.key;
-  if (!key) return;
-  expanded.has(key) ? expanded.delete(key) : expanded.add(key);
-  if (key.startsWith("try:")) renderTry(); else if (lastState) renderPRs(lastState);
-});
-
-// Try it
-let tryResult = null;
-const preset = $("#try-preset");
-preset.innerHTML = Object.keys(PRESETS).map((k) => `<option>${esc(k)}</option>`).join("");
-preset.onchange = () => { const [f, c] = PRESETS[preset.value]; $("#try-folder").value = f; $("#try-code").value = c; };
-preset.onchange();
-
-function renderTry() {
-  if (!tryResult) return;
-  const floor = lastState ? lastState.min_candidate_score : 0.55;
-  $("#try-result").innerHTML = `<div class="panel">
-    <div class="panel-head"><h3>${esc(tryResult.entry.folder)}/</h3><span class="meta">scored in ${tryResult.seconds}s</span></div>
-    ${topicsBlock(tryResult.entry, "What the LLM thinks your code is")}
-    ${rowsTable(tryResult.rows, "try:" + tryResult.entry.folder, floor)}</div>`;
-}
-
 $("#try-go").onclick = async () => {
-  const btn = $("#try-go");
-  btn.disabled = true;
-  $("#try-status").textContent = "Writing card and scoring…";
+  const btn = $("#try-go"); btn.disabled = true; $("#try-status").textContent = "Extracting topics and scoring…";
   try {
-    const res = await fetch("/api/try", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({folder: $("#try-folder").value, code: $("#try-code").value}),
-    });
-    const out = await res.json();
-    if (out.error) throw new Error(out.error);
-    tryResult = out;
-    $("#try-status").textContent = "";
-    renderTry();
-  } catch (e) {
-    $("#try-status").textContent = "Failed: " + e.message;
-  } finally {
-    btn.disabled = false;
-  }
+    const r = await fetch("/api/try", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({folder: $("#try-folder").value, code: $("#try-code").value})});
+    const j = await r.json(); if (!r.ok) throw new Error(j.error);
+    $("#try-status").textContent = `${j.seconds}s with ${j.llm}`;
+    $("#try-result").innerHTML = `<div class="panel">${topicsBlock(j.entry, "What the model thinks your code is")}${rowsTable(j.rows, "try")}</div>`;
+  } catch (e) { $("#try-status").textContent = "Failed: " + e.message; }
+  finally { btn.disabled = false; }
 };
 
-refresh();
-setInterval(refresh, 4000);
+// ---- events / refresh -----------------------------------------------------------
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-expand],[data-merge],[data-close],[data-open],[data-table],[data-page],td.clickable");
+  if (!t) return;
+  if (t.dataset.expand) { expanded.has(t.dataset.expand) ? expanded.delete(t.dataset.expand) : expanded.add(t.dataset.expand); return S && renderPRs(S); }
+  if (t.dataset.table) { dbName = t.dataset.table; dbOffset = 0; dbQ = ""; return renderDB(); }
+  if (t.dataset.page) { dbOffset = Math.max(0, dbOffset + 50 * +t.dataset.page); return renderDBTable(); }
+  if (t.matches("td.clickable")) { t.querySelector(".cell")?.classList.toggle("open"); return; }
+  const [name, body, label] = t.dataset.merge ? ["merge", {number: +t.dataset.merge}, `Merging #${t.dataset.merge}…`]
+    : t.dataset.close ? ["close", {number: +t.dataset.close}, `Closing #${t.dataset.close}…`]
+    : ["open", {branch: t.dataset.open}, `Opening a PR for ${t.dataset.open}…`];
+  t.disabled = true; toast(label);
+  try { await action(name, body); toast(`${label.replace("…", "")} done. The watcher picks it up now.`); refreshTab(true); refresh(); }
+  catch (err) { toast(`Failed: ${err.message}`, 6000); }
+  finally { t.disabled = false; }
+});
+
+function armed(btn, label, run) {
+  btn.onclick = async () => {
+    if (!btn.classList.contains("armed")) { btn.classList.add("armed"); btn.dataset.label = btn.textContent; btn.textContent = label; setTimeout(() => { btn.classList.remove("armed"); btn.textContent = btn.dataset.label; }, 4000); return; }
+    btn.classList.remove("armed"); btn.textContent = btn.dataset.label; btn.disabled = true;
+    try { await run(); } catch (err) { toast(`Failed: ${err.message}`, 7000); } finally { btn.disabled = false; refresh(); refreshTab(true); }
+  };
+}
+armed($("#reset-btn"), "Click again to reset", async () => { toast("Resetting to baseline…", 8000); const r = await action("reset"); toast("Reset: " + (r.steps.join("; ") || "nothing to change"), 8000); });
+armed($("#baseline-btn"), "Click again to save", async () => { const r = await action("baseline"); toast(`Baseline saved: main@${r.baseline.main_sha.slice(0, 7)}, ${r.baseline.open_branches.length} open PRs`); });
+$("#tick-btn").onclick = async () => { try { await action("tick"); toast("Tick started."); } catch (err) { toast(`Failed: ${err.message}`); } };
+
+async function refresh() {
+  try { S = await getJSON("/api/state"); renderHeader(S); if (tab === "prs") renderPRs(S); if (tab === "index") renderIndex(S); }
+  catch (e) { $("#status").innerHTML = `<span class="dot stale"></span>can't reach the dashboard server: ${esc(e.message)}`; }
+}
+function refreshTab(now) {
+  if (tab === "catalog") renderCatalog(now); if (tab === "history") renderHistory(); if (tab === "activity") renderActivity();
+  if (tab === "db" && now) renderDB(); if (tab === "index" && S) renderIndex(S); if (tab === "prs" && S) renderPRs(S);
+  if (tab === "try") loadPresets();
+}
+refresh(); setInterval(refresh, 4000);
+setInterval(() => { if (["history", "activity"].includes(tab)) refreshTab(false); }, 8000);
 </script>
 </body>
 </html>
