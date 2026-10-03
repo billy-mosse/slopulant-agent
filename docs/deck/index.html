@@ -7,7 +7,7 @@
 <script src="comments.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Archivo:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap">
 <style>
   :root {
     color-scheme: dark;
@@ -73,6 +73,43 @@
   .edge { fill: none; stroke: currentColor; stroke-width: 1.4; }
   .edge.faint { stroke: var(--line); }
   .lbl { fill: var(--muted); font: 500 11px "IBM Plex Sans", sans-serif; }
+
+  /* architecture diagram (Jesse's), scoped to slide 2 */
+  .s2 .voiceover { top: 144px; }
+  .diagram.jd { top: 214px; bottom: 50px; display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 12px; background: #ffffff;
+    --g-surface: #ffffff; --g-surface-2: #eeefea; --g-ink: #14181b; --g-ink-2: #4e575d; --g-ink-3: #79838a;
+    --g-line: #d9dad4; --g-line-2: #c3c6be; --g-sig: #007c99; --g-sig-soft: #e3eff2; --g-learn: #9a5b16; --g-store: #f0f1ec; }
+  .diagram.jd > svg { flex: 1; min-height: 0; width: 100%; height: 100%; }
+  .jd svg text { font-family: "Source Sans 3", system-ui, sans-serif; fill: var(--g-ink); }
+  .jd .jd-n-t { font-family: Archivo, system-ui, sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .jd .jd-n-s { font-family: "IBM Plex Mono", monospace; font-size: 12px; fill: var(--g-ink-2); }
+  .jd .jd-e-l { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; fill: var(--g-ink-2); }
+  .jd .jd-e-l.jd-on { fill: var(--g-learn); }
+  .jd .jd-zone { font-family: "IBM Plex Mono", monospace; font-size: 12px; fill: var(--g-ink-3); letter-spacing: .06em; }
+  .jd .jd-nd { fill: var(--g-surface-2); stroke: var(--g-line-2); stroke-width: 1.25; }
+  .jd .jd-nd-m { fill: var(--g-sig-soft); stroke: var(--g-sig); stroke-width: 1.25; }
+  .jd .jd-nd-s { fill: var(--g-store); stroke: var(--g-line-2); stroke-width: 1.25; }
+  .jd .jd-nd-s.jd-hot { stroke: var(--g-learn); }
+  .jd .jd-lid { fill: none; stroke: var(--g-line-2); stroke-width: 1.25; }
+  .jd .jd-lid.jd-hot { stroke: var(--g-learn); }
+  .jd .jd-nd-x { fill: none; stroke: var(--g-line-2); stroke-width: 1.25; stroke-dasharray: 5 4; }
+  .jd .jd-fence { fill: none; stroke: var(--g-line-2); stroke-width: 1.25; stroke-dasharray: 3 5; }
+  .jd .jd-fl { stroke: var(--g-sig); stroke-width: 2; fill: none; }
+  .jd .jd-lr { stroke: var(--g-learn); stroke-width: 2; fill: none; }
+  .jd .jd-of { stroke: var(--g-ink-3); stroke-width: 1.6; fill: none; stroke-dasharray: 6 5; }
+  .jd .jd-git path { fill: none; stroke: var(--g-ink-2); stroke-width: 1.7; stroke-linecap: round; }
+  .jd .jd-git circle { fill: var(--g-surface); stroke: var(--g-ink-2); stroke-width: 1.7; }
+  .jd .jd-chg path, .jd .jd-chg rect { fill: none; stroke: var(--g-ink-2); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+  .jd .jd-chg circle { fill: var(--g-ink-2); stroke: none; }
+  .jd .jd-ch-l { font-family: "IBM Plex Mono", monospace; font-size: 8px; fill: var(--g-ink-3); letter-spacing: .04em; }
+  .jd .jd-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 22px; }
+  .jd .jd-key span { display: inline-flex; align-items: center; gap: 8px; font: 12.5px "IBM Plex Mono", monospace; color: var(--g-ink-2); }
+  .jd .jd-key i { display: block; width: 26px; height: 0; border-top: 2px solid var(--g-ink-3); flex: none; }
+  .jd .jd-key svg { flex: none; width: 22px; height: 14px; }
+  .jd .jd-key i.jd-sig { border-color: var(--g-sig); }
+  .jd .jd-key i.jd-learn { border-color: var(--g-learn); }
+  .jd .jd-key i.jd-off { border-top-style: dashed; }
+  .jd .jd-key i.jd-box { height: 14px; border: 1px dashed var(--g-line-2); border-radius: 2px; }
 
   /* --- 3: example --- */
   .s3 { background: radial-gradient(900px 600px at 10% 110%, rgba(255,62,200,.12), transparent 60%), var(--void); }
@@ -373,115 +410,150 @@
       <li><span>3</span><div>It compares that with <b>everything the company already built</b></div></li>
       <li><span>4</span><div>When work overlaps, <b>humans get notified</b>, and know who to talk to</div></li>
     </ol>
-    <div class="diagram"><svg viewBox="0 0 1100 580" preserveAspectRatio="xMidYMid meet" role="img" aria-label="OpenClaw's scheduler runs a watcher tick every 30 seconds under a lock. The tick polls GitHub for open and merged PRs, queues new commits, extracts topics and candidates, asks the classifier, has the OpenClaw watcher agent write a note and posts it as an [oc] comment on the PR. Merges re-index main reusing cached topic sets. The dashboard reads the SQLite database and drives real PR actions and resets.">
+    <div class="diagram jd"><svg preserveAspectRatio="xMidYMid meet" viewBox="28 0 1606 660" role="img" aria-label="Dataflow for the duplicate work detector. Offline and nightly: a sweep of main runs topic extraction, MiniLM-L6-v2 encodes each topic, and both the raw text and the vector land in the topics table. At PR time: openclaw picks up the PR, qwen3-coder-next decomposes the diff into topics, the same MiniLM encodes them, a candidate generator does an ANN lookup against the topics table for the nearest twenty, and the CLM classifier decides which pairs are real duplicates and writes a verdict with its rationale to the decisions table. openclaw polls that table for unnotified rows, DMs the PR author over Slack, Discord or email, and records the author's thumbs-up or thumbs-down in the reactions table, which feeds back into the classifier's exemplars and threshold. Model-backed stages are drawn as hexagons, tables as cylinders, and anything outside the GB10 with a dashed outline.">
         <defs>
-          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
-          </marker>
+          <marker id="jdaS" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--sig)"/></marker>
+          <marker id="jdaL" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--learn)"/></marker>
+          <marker id="jdaO" viewBox="0 0 9 7" refX="8" refY="3.5" markerWidth="9" markerHeight="7" orient="auto"><polygon points="0,0 9,3.5 0,7" fill="var(--ink-3)"/></marker>
         </defs>
 
-        <!-- row 0 -->
-        <rect class="box" x="20" y="30" width="170" height="80" rx="8"/>
-        <text class="t" x="105" y="58" text-anchor="middle">GitHub</text>
-        <text class="m" x="105" y="76" text-anchor="middle">slopulant-monorepo</text>
-        <text class="s" x="105" y="92" text-anchor="middle">main · PRs · comments</text>
+        <rect class="jd-fence" x="270" y="2" width="1356" height="544" rx="8"/>
+        <text class="jd-zone" x="288" y="534">GB10 · 128 GB unified memory</text>
 
-        <rect class="box" x="460" y="30" width="170" height="80" rx="8"/>
-        <text class="t" x="545" y="56" text-anchor="middle">Watcher tick</text>
-        <text class="s" x="545" y="74" text-anchor="middle">poll open + merged PRs</text>
-        <text class="s" x="545" y="90" text-anchor="middle">queue new commits</text>
+        <!-- ── offline lane: the topics table is built nightly ── -->
+        <path class="jd-nd-m" d="M594 16 L762 16 L776 49 L762 82 L594 82 L580 49 Z"/>
+        <text class="jd-n-t" x="598" y="42">topic extraction</text>
+        <text class="jd-n-s" x="598" y="62">nightly · coder-next</text>
 
-        <rect class="box store" x="680" y="30" width="170" height="80" rx="8"/>
-        <text class="t" x="765" y="56" text-anchor="middle">PR queue</text>
-        <text class="s" x="765" y="74" text-anchor="middle">claimed item by item</text>
-        <text class="s" x="765" y="90" text-anchor="middle">crashed runs retried</text>
+        <path class="jd-nd-m" d="M864 16 L1032 16 L1046 49 L1032 82 L864 82 L850 49 Z"/>
+        <text class="jd-n-t" x="868" y="42">MiniLM-L6-v2</text>
+        <text class="jd-n-s" x="868" y="62">encodes each topic</text>
 
-        <rect class="box llm" x="900" y="30" width="180" height="80" rx="8"/>
-        <text class="t" x="990" y="56" text-anchor="middle">Topics → candidates</text>
-        <text class="s" x="990" y="74" text-anchor="middle">per touched folder</text>
-        <text class="s" x="990" y="90" text-anchor="middle">figures 2 and 3</text>
+        <path class="jd-nd-s" d="M1120 17 A98 10 0 0 1 1316 17 L1316 81 A98 10 0 0 1 1120 81 Z"/>
+        <path class="jd-lid" d="M1120 17 A98 10 0 0 0 1316 17"/>
+        <text class="jd-n-t" x="1134" y="50">topics</text>
+        <text class="jd-n-s" x="1134" y="72">text + vec(384)</text>
 
-        <!-- row 1 -->
-        <rect class="box" x="20" y="170" width="170" height="80" rx="8"/>
-        <text class="t" x="105" y="196" text-anchor="middle">Dashboard</text>
-        <text class="s" x="105" y="214" text-anchor="middle">Chrome on the laptop</text>
-        <text class="m" x="105" y="230" text-anchor="middle">SSH tunnel :8765</text>
+        <path class="jd-of" d="M130 150 V49 H564" marker-end="url(#jdaO)"/>
+        <text class="jd-e-l" x="347" y="40" text-anchor="middle">nightly sweep of main</text>
+        <path class="jd-of" d="M776 49 H842" marker-end="url(#jdaO)"/>
+        <text class="jd-e-l" x="809" y="40" text-anchor="middle">raw text</text>
+        <path class="jd-of" d="M1046 49 H1112" marker-end="url(#jdaO)"/>
+        <text class="jd-e-l" x="1079" y="40" text-anchor="middle">text + vec</text>
 
-        <rect class="box" x="240" y="170" width="170" height="80" rx="8"/>
-        <text class="t" x="325" y="196" text-anchor="middle">Demo actions</text>
-        <text class="s" x="325" y="214" text-anchor="middle">open · merge · close</text>
-        <text class="s" x="325" y="230" text-anchor="middle">reset · model switch</text>
+        <!-- ── PR-time path ── -->
+        <rect class="jd-nd-x" x="40" y="150" width="196" height="96" rx="5"/>
+        <g class="jd-git" aria-hidden="true">
+          <path d="M200 169 V183"/>
+          <path d="M200 179 C 208 179 214 179 214 175.5"/>
+          <circle cx="200" cy="166" r="3.4"/>
+          <circle cx="200" cy="186" r="3.4"/>
+          <circle cx="214" cy="172" r="3.4"/>
+        </g>
+        <text class="jd-n-t" x="54" y="178">monorepo</text>
+        <text class="jd-n-s" x="54" y="202">github · 11 teams</text>
+        <text class="jd-n-s" x="54" y="220">PR #4812 opened</text>
 
-        <rect class="box" x="460" y="170" width="170" height="80" rx="8" style="stroke:var(--accent, #2f5d8a);stroke-width:2"/>
-        <text class="t" x="545" y="196" text-anchor="middle">OpenClaw scheduler</text>
-        <text class="s" x="545" y="214" text-anchor="middle">job every 30 s</text>
-        <text class="s" x="545" y="230" text-anchor="middle">lock: ticks never overlap</text>
+        <rect class="jd-nd" x="310" y="150" width="196" height="96" rx="5"/>
+        <text class="jd-n-t" x="324" y="178">🦞 openclaw</text>
+        <text class="jd-n-s" x="324" y="202">cron / event router</text>
 
-        <rect class="box store" x="680" y="170" width="170" height="80" rx="8"/>
-        <text class="t" x="765" y="196" text-anchor="middle">SQLite</text>
-        <text class="s" x="765" y="214" text-anchor="middle">topics · scores · verdicts</text>
-        <text class="s" x="765" y="230" text-anchor="middle">alerts · events</text>
+        <path class="jd-nd-m" d="M594 150 L762 150 L776 198 L762 246 L594 246 L580 198 Z"/>
+        <text class="jd-n-t" x="598" y="178">topic extraction</text>
+        <text class="jd-n-s" x="598" y="202">qwen3-coder-next-80b-3a</text>
+        <text class="jd-n-s" x="598" y="220">q6_k; ollama</text>
 
-        <rect class="box llm" x="900" y="170" width="180" height="80" rx="8"/>
-        <text class="t" x="990" y="196" text-anchor="middle">Classifier</text>
-        <text class="s" x="990" y="214" text-anchor="middle">relation + confidence</text>
-        <text class="s" x="990" y="230" text-anchor="middle">dummy LLM → CLM later</text>
+        <path class="jd-nd-m" d="M864 150 L1032 150 L1046 198 L1032 246 L864 246 L850 198 Z"/>
+        <text class="jd-n-t" x="868" y="178">MiniLM-L6-v2</text>
+        <text class="jd-n-s" x="868" y="202">same model as index</text>
+        <text class="jd-n-s" x="868" y="220">topic → 384-d</text>
 
-        <!-- row 2 -->
-        <rect class="box" x="680" y="310" width="170" height="80" rx="8"/>
-        <text class="t" x="765" y="336" text-anchor="middle">Re-index main</text>
-        <text class="s" x="765" y="354" text-anchor="middle">after a merge: topic sets</text>
-        <text class="s" x="765" y="370" text-anchor="middle">reused by git tree sha</text>
+        <rect class="jd-nd" x="1120" y="150" width="196" height="96" rx="5"/>
+        <text class="jd-n-t" x="1134" y="178">candidate generator</text>
+        <text class="jd-n-s" x="1134" y="202">ANN search, k=20</text>
+        <text class="jd-n-s" x="1134" y="220">high recall, low prec.</text>
 
-        <rect class="box llm" x="900" y="310" width="180" height="80" rx="8" style="stroke-width:2"/>
-        <text class="t" x="990" y="336" text-anchor="middle">OpenClaw agent</text>
-        <text class="m" x="990" y="354" text-anchor="middle">watcher</text>
-        <text class="s" x="990" y="370" text-anchor="middle">writes the note to the author</text>
+        <path class="jd-nd-m" d="M1404 150 L1572 150 L1586 198 L1572 246 L1404 246 L1390 198 Z"/>
+        <text class="jd-n-t" x="1408" y="178">CLM classifier</text>
+        <text class="jd-n-s" x="1408" y="202">ollama · qwen3-8b</text>
+        <text class="jd-n-s" x="1408" y="220">dupe? + rationale</text>
 
-        <!-- row 3 -->
-        <rect class="box llm" x="460" y="450" width="170" height="80" rx="8"/>
-        <text class="t" x="545" y="476" text-anchor="middle">LLM profiles</text>
-        <text class="s" x="545" y="494" text-anchor="middle">Ollama Coder-Next Q6</text>
-        <text class="s" x="545" y="510" text-anchor="middle">or OpenRouter bf16</text>
+        <path class="jd-fl" d="M236 198 H302" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="269" y="186" text-anchor="middle">PR open</text>
+        <path class="jd-fl" d="M506 198 H572" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="539" y="176" text-anchor="middle">diff +</text>
+        <text class="jd-e-l" x="539" y="190" text-anchor="middle">paths</text>
+        <path class="jd-fl" d="M776 198 H842" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="809" y="176" text-anchor="middle">topic</text>
+        <text class="jd-e-l" x="809" y="190" text-anchor="middle">strings</text>
+        <path class="jd-fl" d="M1046 198 H1112" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="1079" y="176" text-anchor="middle">384-d</text>
+        <text class="jd-e-l" x="1079" y="190" text-anchor="middle">vectors</text>
+        <path class="jd-fl" d="M1316 198 H1382" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="1349" y="176" text-anchor="middle">≤20 pairs</text>
+        <text class="jd-e-l" x="1349" y="190" text-anchor="middle">per topic</text>
 
-        <rect class="box" x="900" y="450" width="180" height="80" rx="8"/>
-        <text class="t" x="990" y="476" text-anchor="middle">[oc] PR comment</text>
-        <text class="s" x="990" y="494" text-anchor="middle">links · owners · verdicts</text>
-        <text class="s" x="990" y="510" text-anchor="middle">edited on every push</text>
+        <path class="jd-fl" d="M1218 91 V142" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="1232" y="118">ANN index · nearest 20</text>
 
-        <!-- edges -->
-        <path class="edge" d="M190,62 H458" marker-end="url(#a1)"/>
-        <text class="lbl" x="324" y="55" text-anchor="middle">open + merged PRs</text>
-        <path class="edge" d="M630,70 H678" marker-end="url(#a1)"/>
-        <text class="lbl" x="654" y="63" text-anchor="middle">new</text>
-        <path class="edge" d="M850,70 H898" marker-end="url(#a1)"/>
-        <text class="lbl" x="874" y="63" text-anchor="middle">next</text>
-        <path class="edge" d="M545,170 V112" marker-end="url(#a1)"/>
-        <text class="lbl" x="553" y="146">runs 1 tick</text>
-        <path class="edge" d="M990,110 V168" marker-end="url(#a1)"/>
-        <text class="lbl" x="998" y="146">each candidate</text>
-        <path class="edge" d="M990,250 V308" marker-end="url(#a1)"/>
-        <text class="lbl" x="998" y="286">findings</text>
-        <path class="edge" d="M990,390 V448" marker-end="url(#a1)"/>
-        <text class="lbl" x="998" y="426">note</text>
-        <path class="edge" d="M990,530 V556 H10 V80 H18" marker-end="url(#a1)"/>
-        <text class="lbl" x="770" y="550" text-anchor="middle">post / edit comment on the PR</text>
-        <path class="edge" d="M898,210 H852" marker-end="url(#a1)"/>
-        <text class="lbl" x="875" y="203" text-anchor="middle">store</text>
-        <!-- merge path -->
-        <path class="edge" d="M630,100 H655 V350 H678" marker-end="url(#a1)"/>
-        <text class="lbl" x="662" y="335">merge</text>
-        <path class="edge" d="M765,310 V252" marker-end="url(#a1)"/>
-        <!-- dashboard -->
-        <path class="edge" d="M190,210 H238" marker-end="url(#a1)"/>
-        <path class="edge" d="M325,170 V140 H120 V112" marker-end="url(#a1)"/>
-        <text class="lbl" x="222" y="134" text-anchor="middle">GitHub API · force-push on reset</text>
-        <path class="edge" d="M105,250 V285 H765 V252" marker-end="url(#a1)"/>
-        <text class="lbl" x="430" y="279" text-anchor="middle">reads (every 4 s)</text>
-        <!-- llm usage -->
-        <path class="edge faint" d="M630,490 H700 V410 H990 V392"/>
-        <text class="lbl" x="706" y="430">used by topics, classifier</text>
-      </svg></div>
+        <path class="jd-fl" d="M1586 182 H1606 V458 H1590" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="1598" y="300" text-anchor="end">writes verdict,</text>
+        <text class="jd-e-l" x="1598" y="316" text-anchor="end">confidence, rationale</text>
+
+        <!-- ── decision side ── -->
+        <path class="jd-nd-s" d="M1390 426 A98 10 0 0 1 1586 426 L1586 490 A98 10 0 0 1 1390 490 Z"/>
+        <path class="jd-lid" d="M1390 426 A98 10 0 0 0 1586 426"/>
+        <text class="jd-n-t" x="1404" y="459">decisions</text>
+        <text class="jd-n-s" x="1404" y="481">one row per pair</text>
+
+        <rect class="jd-nd" x="850" y="410" width="196" height="96" rx="5"/>
+        <text class="jd-n-t" x="864" y="438">🦞 openclaw · comms</text>
+        <text class="jd-n-s" x="864" y="462">learns the org's words</text>
+        <text class="jd-n-s" x="864" y="480">one DM per author</text>
+
+        <path class="jd-nd-s jd-hot" d="M580 426 A98 10 0 0 1 776 426 L776 490 A98 10 0 0 1 580 490 Z"/>
+        <path class="jd-lid jd-hot" d="M580 426 A98 10 0 0 0 776 426"/>
+        <text class="jd-n-t" x="594" y="459">reactions</text>
+        <text class="jd-n-s" x="594" y="481">human labels</text>
+
+        <path class="jd-fl" d="M1390 458 H1054" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="1222" y="478" text-anchor="middle">openclaw polls</text>
+        <text class="jd-e-l" x="1222" y="492" text-anchor="middle">unnotified rows</text>
+        <path class="jd-fl" d="M850 458 H784" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="817" y="478" text-anchor="middle">reaction</text>
+        <text class="jd-e-l" x="817" y="492" text-anchor="middle">+ pair id</text>
+
+        <rect class="jd-nd-x" x="850" y="572" width="196" height="76" rx="5"/>
+        <text class="jd-n-t" x="864" y="598">PR author</text>
+        <g class="jd-chg" aria-hidden="true">
+          <path d="M868 616 L866.5 627"/><path d="M872 616 L870.5 627"/>
+          <path d="M864.8 620 L874 620"/><path d="M864.4 623.5 L873.6 623.5"/>
+          <rect x="910" y="616" width="11" height="8" rx="2.5"/>
+          <path d="M913.5 624 L912.5 627.5 L916 624"/>
+          <circle cx="914" cy="620" r="0.9"/><circle cx="917.5" cy="620" r="0.9"/>
+          <rect x="966" y="617" width="11" height="8" rx="1.2"/>
+          <path d="M966 617.6 L971.5 622 L977 617.6"/>
+        </g>
+        <text class="jd-ch-l" x="878" y="625">slack</text>
+        <text class="jd-ch-l" x="924" y="625">discord</text>
+        <text class="jd-ch-l" x="980" y="625">gmail</text>
+
+        <path class="jd-fl" d="M916 568 V510" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="904" y="542" text-anchor="end">👍 / 👎</text>
+        <path class="jd-fl" d="M980 506 V568" marker-end="url(#jdaS)"/>
+        <text class="jd-e-l" x="992" y="542">the DM</text>
+
+        <path class="jd-lr" d="M678 416 V360 H1420 V250" marker-end="url(#jdaL)"/>
+        <text class="jd-e-l jd-on" x="1049" y="350" text-anchor="middle">few-shot exemplars · calibrated threshold</text>
+      </svg>
+<div class="jd-key">
+      <span><i class="jd-sig"></i>PR-time path · seconds</span>
+      <span><i class="jd-learn"></i>learning loop · batched</span>
+      <span><i class="jd-off"></i>offline · nightly</span>
+      <span><svg width="24" height="14" aria-hidden="true" viewBox="0 0 24 14"><path class="jd-nd-m" d="M4 1 L20 1 L23 7 L20 13 L4 13 L1 7 Z"/></svg>model on ollama</span>
+      <span><svg width="20" height="15" aria-hidden="true" viewBox="0 0 20 15"><path class="jd-nd-s" d="M1 4 A9 3 0 0 1 19 4 L19 11 A9 3 0 0 1 1 11 Z"/><path class="jd-lid" d="M1 4 A9 3 0 0 0 19 4"/></svg>table</span>
+      <span><i class="jd-box"></i>outside the GB10</span>
+    </div></div>
   </section>
 
   <!-- STACK -->
