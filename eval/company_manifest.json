@@ -352,7 +352,7 @@
       "author": "Lena Fischer", "title": "Promo calendar + markdowns aware of promos",
       "folders": {
         "promo_calendar": {
-          "related": ["promo_uplift"],
+          "related": ["promo_uplift", "markdown_optimizer"],
           "reads": ["marketing.promo_history"], "writes": ["pricing.promo_calendar"],
           "files": ["calendar.py"],
           "spec": "Builds next quarter's promo calendar from past promo performance: which categories to discount which weeks, avoiding overlaps and blackout dates, with expected incremental revenue per promo week."},

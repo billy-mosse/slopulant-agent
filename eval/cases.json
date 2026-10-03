@@ -234,6 +234,9 @@
   },
   "lena/promo-calendar": {
     "promo_calendar": {
+      "markdown_optimizer": [
+        "related"
+      ],
       "promo_uplift": [
         "related"
       ]

@@ -8,7 +8,8 @@ PR folder's candidate set for several K and compares it with eval/cases.json:
   recall          share of expected folders (duplicate / partial / upstream /
                   downstream) that are candidates; "related" folders don't count
   cands/folder    average candidate-set size: the work handed to the next stage
-  silent negs     unrelated PR folders that produce no candidates at all
+  silent negs     unrelated PR folders that produce no candidates (other than folders
+                  labeled "related", which are fair to surface)
 
     python -m eval.run_eval            # K table + per-relation recall + per-PR misses
     python -m eval.run_eval --quiet    # K table + per-relation recall
@@ -73,12 +74,13 @@ def main():
         for _, rows, truth in folders:
             cands = candidates(rows, k, floor)
             expected = {repo for repo, rel in truth.items() if set(rel) & set(POSITIVE)}
+            related = {repo for repo, rel in truth.items() if rel == ["related"]}
             hit += len(expected & cands)
             want += len(expected)
             n_cands += len(cands)
             if not expected:
                 neg += 1
-                neg_silent += not cands
+                neg_silent += not (cands - related)  # surfacing a "related" folder is fine
         return hit, want, n_cands / len(folders), neg_silent, neg
 
     floor = config.MIN_CANDIDATE_SCORE
